@@ -1,35 +1,39 @@
-import React, { useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx'
-import LoadingSpinner from '@/components/UI/LoadingSpinner.jsx'
-import Login from '@/pages/Auth/Login.jsx'
-import Register from '@/pages/Auth/Register.jsx'
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
+import LoadingSpinner from '@/components/UI/LoadingSpinner.jsx';
+import Login from '@/pages/Auth/Login.jsx';
+import Register from '@/pages/Auth/Register.jsx';
 
-// Import unified layout
-import Layout from '@/components/Layout/Layout.jsx'
+// Unified layout
+import Layout from '@/components/Layout/Layout.jsx';
 
-// Import simplified dashboard components
-import AdminDashboard from '@/pages/Admin/Dashboard.jsx'
-import TeacherDashboard from '@/pages/Teacher/Dashboard.jsx'
-import StudentDashboard from '@/pages/student/Dashboard.jsx'
+// Dashboards
+import AdminDashboard from '@/pages/Admin/Dashboard.jsx';
+import TeacherDashboard from '@/pages/Teacher/Dashboard.jsx';
+import StudentDashboard from '@/pages/Student/Dashboard.jsx';
 
-// Import additional pages
-import UserManagement from '@/pages/admin/UserManagement.jsx'
-import CourseManagement from '@/pages/admin/CourseManagement.jsx'
-import SessionManagement from '@/pages/admin/SessionManagement.jsx'
-import Analytics from '@/pages/admin/Analytics.jsx'
-import TeacherRecordings from '@/pages/Teacher/TeacherRecordings.jsx'
-import TeacherSessions from '@/pages/Teacher/TeacherSessions.jsx'
-import TeacherStudents from '@/pages/Teacher/TeacherStudents.jsx'
-import StudentSessions from '@/pages/student/StudentSessions.jsx'
-import StudentRecordings from '@/pages/student/StudentRecordings.jsx'
-import StudentCourses from '@/pages/student/StudentCourses.jsx'
+// Admin pages
+import UserManagement from '@/pages/Admin/UserManagement.jsx';
+import CourseManagement from '@/pages/Admin/CourseManagement.jsx';
+import SessionManagement from '@/pages/Admin/SessionManagement.jsx';
+import Analytics from '@/pages/Admin/Analytics.jsx';
 
-// Import existing components
-import RecordingDetail from '@/pages/Recording/RecordingDetail.jsx'
-import Profile from '@/pages/User/Profile.jsx'
-import SubscriptionPlans from '@/components/Subscription/SubscriptionPlans.jsx'
-import { getAuth } from 'firebase/auth'
+// Teacher pages
+import TeacherRecordings from '@/pages/Teacher/TeacherRecordings.jsx';
+import TeacherSessions from '@/pages/Teacher/TeacherSessions.jsx';
+import TeacherStudents from '@/pages/Teacher/TeacherStudents.jsx';
+
+// Student pages
+import StudentSessions from '@/pages/Student/StudentSessions.jsx';
+import StudentRecordings from '@/pages/Student/StudentRecordings.jsx';
+import StudentCourses from '@/pages/Student/StudentCourses.jsx';
+
+// Shared / Other components
+import RecordingDetail from '@/pages/Recording/RecordingDetail.jsx';
+import Profile from '@/pages/User/Profile.jsx';
+import SubscriptionPlans from '@/components/Subscription/SubscriptionPlans.jsx';
+import { getAuth } from 'firebase/auth';
 
 // ✅ Force Logout Component
 const Logout = () => {
