@@ -10,7 +10,7 @@ import Layout from '@/components/Layout/Layout.jsx'
 
 // Import simplified dashboard components
 import AdminDashboard from '@/pages/Admin/Dashboard.jsx'
-import TeacherDashboard from '@/pages/teacher/Dashboard.jsx'
+import TeacherDashboard from '@/pages/Teacher/Dashboard.jsx'
 import StudentDashboard from '@/pages/student/Dashboard.jsx'
 
 // Import additional pages
@@ -18,9 +18,9 @@ import UserManagement from '@/pages/admin/UserManagement.jsx'
 import CourseManagement from '@/pages/admin/CourseManagement.jsx'
 import SessionManagement from '@/pages/admin/SessionManagement.jsx'
 import Analytics from '@/pages/admin/Analytics.jsx'
-import TeacherRecordings from '@/pages/teacher/TeacherRecordings.jsx'
-import TeacherSessions from '@/pages/teacher/TeacherSessions.jsx'
-import TeacherStudents from '@/pages/teacher/TeacherStudents.jsx'
+import TeacherRecordings from '@/pages/Teacher/TeacherRecordings.jsx'
+import TeacherSessions from '@/pages/Teacher/TeacherSessions.jsx'
+import TeacherStudents from '@/pages/Teacher/TeacherStudents.jsx'
 import StudentSessions from '@/pages/student/StudentSessions.jsx'
 import StudentRecordings from '@/pages/student/StudentRecordings.jsx'
 import StudentCourses from '@/pages/student/StudentCourses.jsx'
