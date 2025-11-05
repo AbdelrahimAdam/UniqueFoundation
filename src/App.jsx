@@ -6,7 +6,7 @@ import Login from '@/pages/Auth/Login.jsx'
 import Register from '@/pages/Auth/Register.jsx'
 
 // Import unified layout
-import Layout from '@/components/layout/Layout.jsx'
+import Layout from '@/components/Layout/Layout.jsx'
 
 // Import simplified dashboard components
 import AdminDashboard from '@/pages/Admin/Dashboard.jsx'
