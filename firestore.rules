@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read their own profile, only write specific fields
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == userId && 
+        request.resource.data.keys().hasOnly(['email', 'displayName', 'createdAt', 'isActive', 'isAdmin', 'subscription']);
+      
+      // Prevent users from modifying their own status
+      allow update: if request.auth != null && 
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+    }
+    
+    // Admin can read all users and update status
+    match /users/{userId} {
+      allow read, update: if isAdmin();
+    }
+    
+    // Sessions: Read for approved users, write for admins
+    match /sessions/{sessionId} {
+      allow read: if isApprovedUser();
+      allow write: if isAdmin();
+    }
+    
+    // Courses: Read for approved users, write for admins
+    match /courses/{courseId} {
+      allow read: if isApprovedUser();
+      allow write: if isAdmin();
+    }
+    
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isApprovedUser() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+  }
+}
