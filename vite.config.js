@@ -1,24 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import viteCompression from 'vite-plugin-compression'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    viteCompression({
-      algorithm: 'gzip',
-      ext: '.gz',
-      threshold: 10240,
-      deleteOriginFile: false,
-    }),
-    viteCompression({
-      algorithm: 'brotliCompress',
-      ext: '.br',
-      threshold: 10240,
-      deleteOriginFile: false,
-    }),
   ],
 
   // Critical: Define global variables for Firebase and other libraries
@@ -34,12 +21,6 @@ export default defineConfig({
       // Ensure single instance of React
       react: path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
-      // Fix for buffer issues
-      buffer: path.resolve(__dirname, './node_modules/buffer'),
-      // Fix for stream issues
-      stream: path.resolve(__dirname, './node_modules/stream-browserify'),
-      // Fix for util issues
-      util: path.resolve(__dirname, './node_modules/util'),
     },
   },
 
@@ -76,13 +57,9 @@ export default defineConfig({
       compress: {
         drop_console: true,
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.debug'], // Remove console logs
       },
       format: {
         comments: false,
-      },
-      mangle: {
-        safari10: true,
       },
     },
 
@@ -105,10 +82,10 @@ export default defineConfig({
             if (id.includes('react')) return 'react-core'
             
             // UI libraries
-            if (id.includes('@headlessui') || id.includes('@heroicons')) return 'ui-components'
+            if (id.includes('framer-motion') || id.includes('lucide-react')) return 'ui-components'
             
             // Utilities
-            if (id.includes('axios') || id.includes('date-fns') || id.includes('lodash')) return 'utils'
+            if (id.includes('axios') || id.includes('date-fns')) return 'utils'
             
             // Internationalization
             if (id.includes('i18next')) return 'i18n'
@@ -118,37 +95,29 @@ export default defineConfig({
             
             return 'vendor-other'
           }
-          
-          // Split src code by routes for better caching
-          if (id.includes('src/pages') || id.includes('src/routes')) {
-            const match = id.match(/src\/(pages|routes)\/([^\/]+)/)
-            if (match) {
-              return `route-${match[2]}`
-            }
-          }
         },
         
-        // Optimized file naming for caching
+        // Optimized file naming for caching - CRITICAL FOR STATIC ASSETS
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.')
-          const ext = info[info.length - 1]
-          if (/\.(css|scss|sass|less)$/.test(assetInfo.name)) {
-            return 'assets/css/[name]-[hash][extname]'
-          }
-          if (/\.(gif|jpe?g|png|svg|ico|webp)$/.test(assetInfo.name)) {
+          const extType = assetInfo.name.split('.').pop()
+          // Handle images and icons properly
+          if (/png|jpe?g|gif|tiff|bmp|ico|svg/i.test(extType)) {
             return 'assets/images/[name]-[hash][extname]'
           }
-          if (/\.(woff2?|eot|ttf|otf)$/.test(assetInfo.name)) {
+          // Handle fonts
+          if (/woff2?|eot|ttf|otf/i.test(extType)) {
             return 'assets/fonts/[name]-[hash][extname]'
           }
+          // Handle CSS
+          if (/css/i.test(extType)) {
+            return 'assets/css/[name]-[hash][extname]'
+          }
+          // Default for other assets
           return 'assets/[name]-[hash][extname]'
         },
       },
-      
-      // External dependencies that shouldn't be bundled
-      external: [],
     },
   },
 
@@ -161,29 +130,19 @@ export default defineConfig({
       'firebase/app',
       'firebase/auth',
       'firebase/firestore',
-      'firebase/storage',
-    ],
-    exclude: [
-      // Exclude dependencies that cause issues
     ],
   },
 
   // ESBuild configuration
   esbuild: {
     drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
-    pure: process.env.NODE_ENV === 'production' ? ['console.log', 'console.debug'] : [],
   },
 
   // CSS configuration
   css: {
     devSourcemap: false,
-    modules: {
-      localsConvention: 'camelCase',
-    },
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@import "@/styles/variables.scss";`,
-      },
-    },
   },
+
+  // Public directory for static assets - CRITICAL FOR FAVICON
+  publicDir: 'public',
 })
