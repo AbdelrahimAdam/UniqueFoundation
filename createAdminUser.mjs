@@ -1,5 +1,5 @@
 // src/createAdminUser.jsx
-import { auth, db } from "./src/config/firebase.js";
+import { auth, db } from "./src/config/firebase.jsx";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 

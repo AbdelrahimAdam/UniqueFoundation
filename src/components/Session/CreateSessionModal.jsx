@@ -22,7 +22,7 @@ import { db } from '../../config/firebase.jsx';
 import { useAuth } from '../../hooks/useAuth.jsx';
 import Button from '../UI/Button.jsx';
 import Select from '../UI/Select.jsx';
-import { recordingService } from '../../services/recordingService.jsx';
+import { sessionService } from '../../services/sessionService.jsx'; // ✅ CHANGED: Use sessionService instead of recordingService
 
 // ✅ FIX: Move CustomInput and CustomTextArea OUTSIDE the component to prevent re-renders
 const CustomInput = React.forwardRef(
@@ -96,7 +96,7 @@ const CustomTextArea = React.forwardRef(
 const CreateSessionModal = ({
   onClose,
   onSuccess,
-  initialData = {},
+  session = null, // ✅ CHANGED: Accept session prop for editing
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -107,25 +107,28 @@ const CreateSessionModal = ({
   const [success, setSuccess] = useState('');
   const [availableCourses, setAvailableCourses] = useState([]);
 
+  const isEditMode = Boolean(session);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isDirty, isValid },
     watch,
     setValue,
+    reset,
   } = useForm({
     mode: 'onChange',
     defaultValues: {
-      title: initialData.title || '',
-      description: initialData.description || '',
-      meetLink: initialData.meetLink || '',
-      scheduledTime: initialData.scheduledTime || '',
-      duration: initialData.duration || 60,
-      category: initialData.category || 'lecture',
-      visibility: initialData.visibility || 'private',
-      maxParticipants: initialData.maxParticipants || 50,
-      courseId: initialData.courseId || 'general',
-      enableRecording: initialData.enableRecording ?? true,
+      title: session?.title || session?.topic || '',
+      description: session?.description || '',
+      meetLink: session?.meetLink || '',
+      scheduledTime: session?.scheduledTime ? new Date(session.scheduledTime).toISOString().slice(0, 16) : '',
+      duration: session?.duration || 60,
+      category: session?.category || 'lecture',
+      visibility: session?.visibility || 'private',
+      maxParticipants: session?.maxParticipants || 50,
+      courseId: session?.courseId || 'general',
+      enableRecording: session?.enableRecording ?? true,
     },
   });
 
@@ -394,7 +397,10 @@ const CreateSessionModal = ({
   const SessionCreationGuide = useMemo(() => () => (
     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
       <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3">
-        {t('session.creationGuide.title', 'How to Create a Google Meet Session')}
+        {isEditMode 
+          ? t('session.editGuide.title', 'Edit Session Details') 
+          : t('session.creationGuide.title', 'How to Create a Google Meet Session')
+        }
       </h4>
       <div className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
         <div className="flex items-start space-x-2">
@@ -420,11 +426,11 @@ const CreateSessionModal = ({
         </div>
       </div>
     </div>
-  ), [t]);
+  ), [t, isEditMode]);
 
-  // Create Session using the enhanced recording service
-  const createMeetSession = async (data) => {
-    console.log('📋 Creating session with data:', data);
+  // ✅ CHANGED: Use sessionService instead of recordingService
+  const createOrUpdateSession = async (data) => {
+    console.log('📋 Creating/Updating session with data:', data);
 
     // Calculate session end time
     const startTime = new Date(data.scheduledTime);
@@ -449,17 +455,25 @@ const CreateSessionModal = ({
       createdBy: user.uid,
     };
 
-    console.log('🚀 Final session data for recording service:', sessionData);
+    console.log('🚀 Final session data for session service:', sessionData);
 
-    // Use the enhanced recording service
-    return await recordingService.createSessionRecording(sessionData);
+    if (isEditMode && session?.id) {
+      // Update existing session
+      return await sessionService.updateSession(session.id, sessionData);
+    } else {
+      // Create new session
+      return await sessionService.createSession(sessionData);
+    }
   };
 
-  const mutation = useMutation(createMeetSession, {
+  const mutation = useMutation(createOrUpdateSession, {
     onSuccess: (data) => {
-      console.log('✅ Session created successfully:', data);
-      queryClient.invalidateQueries(['recordings', 'sessions', 'teacherRecordings', 'instructorMeetRecordings']);
-      setSuccess(t('success.sessionCreated', 'Session created!'));
+      console.log('✅ Session created/updated successfully:', data);
+      queryClient.invalidateQueries(['sessions', 'teacherSessions', 'publicSessions']);
+      setSuccess(isEditMode 
+        ? t('success.sessionUpdated', 'Session updated!') 
+        : t('success.sessionCreated', 'Session created!')
+      );
       setIsSubmitting(false);
       setTimeout(() => {
         onSuccess?.(data);
@@ -467,8 +481,11 @@ const CreateSessionModal = ({
       }, 2000);
     },
     onError: (err) => {
-      console.error('❌ Session creation error:', err);
-      setError(err.message || t('errors.sessionCreationFailed', 'Failed to create session.'));
+      console.error('❌ Session creation/update error:', err);
+      setError(err.message || (isEditMode 
+        ? t('errors.sessionUpdateFailed', 'Failed to update session.') 
+        : t('errors.sessionCreationFailed', 'Failed to create session.')
+      ));
       setIsSubmitting(false);
     },
   });
@@ -520,6 +537,24 @@ const CreateSessionModal = ({
     return () => document.removeEventListener('keydown', handler);
   }, [onClose, isSubmitting]);
 
+  // Reset form when session changes
+  useEffect(() => {
+    if (session) {
+      reset({
+        title: session.title || session.topic || '',
+        description: session.description || '',
+        meetLink: session.meetLink || '',
+        scheduledTime: session.scheduledTime ? new Date(session.scheduledTime).toISOString().slice(0, 16) : '',
+        duration: session.duration || 60,
+        category: session.category || 'lecture',
+        visibility: session.visibility || 'private',
+        maxParticipants: session.maxParticipants || 50,
+        courseId: session.courseId || 'general',
+        enableRecording: session.enableRecording ?? true,
+      });
+    }
+  }, [session, reset]);
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -535,10 +570,16 @@ const CreateSessionModal = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {t('session.createNew', 'Create Google Meet Session')}
+                {isEditMode 
+                  ? t('session.editSession', 'Edit Session') 
+                  : t('session.createNew', 'Create Google Meet Session')
+                }
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('session.createSubtitle', 'Schedule a new session for your students')}
+                {isEditMode
+                  ? t('session.editSubtitle', 'Update session details')
+                  : t('session.createSubtitle', 'Schedule a new session for your students')
+                }
               </p>
             </div>
           </div>
@@ -821,12 +862,15 @@ const CreateSessionModal = ({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !isDirty || !isValid}
+              disabled={isSubmitting || (!isDirty && isEditMode) || !isValid}
               loading={isSubmitting}
               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
               icon={Plus}
             >
-              {isSubmitting ? t('session.creating', 'Creating...') : t('session.createSession', 'Create Session')}
+              {isSubmitting 
+                ? (isEditMode ? t('session.updating', 'Updating...') : t('session.creating', 'Creating...'))
+                : (isEditMode ? t('session.updateSession', 'Update Session') : t('session.createSession', 'Create Session'))
+              }
             </Button>
           </div>
         </form>

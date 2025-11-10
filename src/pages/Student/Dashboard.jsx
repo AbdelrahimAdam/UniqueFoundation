@@ -11,28 +11,273 @@ import {
 import LoadingSpinner from '../../components/UI/LoadingSpinner.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Input from '../../components/UI/Input.jsx'
-import {
-  BookOpen,
-  Video,
-  Users,
-  Search,
-  PlayCircle,
-  Clock,
-  Eye,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  Zap,
-  Calendar,
-  TrendingUp,
-  Star,
-  AlertCircle,
-  ArrowRight,
-  Crown,
-  User,
-  BarChart3,
-  Filter
+
+// Lazy load icons - only import what's needed
+import { 
+  BookOpen, Video, Users, Search, PlayCircle, Clock, Eye, 
+  RefreshCw, CheckCircle, Calendar, TrendingUp, Star, 
+  AlertCircle, ArrowRight, Crown, User, Filter, XCircle 
 } from 'lucide-react'
+
+// Constants - moved outside component to prevent recreation
+const SORT_OPTIONS = [
+  { value: 'createdAt', label: 'Date Added' },
+  { value: 'title', label: 'Title' },
+  { value: 'duration', label: 'Duration' },
+  { value: 'views', label: 'Popularity' },
+  { value: 'rating', label: 'Rating' }
+]
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'lecture', label: 'Lectures' },
+  { value: 'tutorial', label: 'Tutorials' },
+  { value: 'workshop', label: 'Workshops' },
+  { value: 'qna', label: 'Q&A Sessions' }
+]
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All Status' },
+  { value: 'new', label: 'New' },
+  { value: 'watched', label: 'Watched' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'processing', label: 'Processing' }
+]
+
+// Helper functions - moved outside component
+const formatDuration = (seconds) => {
+  if (!seconds) return '0:00'
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+ 
+  if (hours > 0) {
+    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+const formatDateTime = (date) => {
+  if (!date) return { date: 'TBD', time: '', full: 'TBD' }
+  const dateObj = new Date(date)
+  return {
+    date: dateObj.toLocaleDateString(),
+    time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    full: dateObj.toLocaleString()
+  }
+}
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'completed': return 'from-green-500 to-emerald-500'
+    case 'processing': return 'from-yellow-500 to-orange-500'
+    case 'recording': return 'from-blue-500 to-cyan-500'
+    case 'failed': return 'from-red-500 to-pink-500'
+    default: return 'from-gray-500 to-gray-600'
+  }
+}
+
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'completed': return CheckCircle
+    case 'processing': return Clock
+    case 'recording': return PlayCircle
+    case 'failed': return XCircle
+    default: return Video
+  }
+}
+
+const getProgressColor = (progress) => {
+  if (progress >= 90) return 'from-green-500 to-emerald-500'
+  if (progress >= 50) return 'from-yellow-500 to-orange-500'
+  return 'from-blue-500 to-cyan-500'
+}
+
+// Optimized Recording Card Component
+const RecordingCard = React.memo(({ 
+  recording, 
+  onWatch, 
+  actionLoading,
+  getTeacherName,
+  teachers 
+}) => {
+  const StatusIcon = getStatusIcon(recording.status)
+  const progress = recording.progress || (recording.watched ? 100 : 0)
+  const teacherName = recording.instructorName || getTeacherName(recording.instructorId)
+  
+  return (
+    <div className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-6 shadow-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-4 flex-1 min-w-0">
+          <div className={`p-3 rounded-2xl bg-gradient-to-br ${getStatusColor(recording.status)}`}>
+            <StatusIcon className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-2">
+              <h4 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-1 flex-1">
+                {recording.title}
+                {recording.meetLink && (
+                  <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-full">
+                    Google Meet
+                  </span>
+                )}
+              </h4>
+              <div className="flex items-center space-x-2 ml-3">
+                {recording.watched && (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                )}
+                {recording.isFeatured && (
+                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                )}
+              </div>
+            </div>
+           
+            <p className="text-gray-700 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+              {recording.description || 'No description provided'}
+            </p>
+
+            {/* Instructor and Category */}
+            <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400 mb-3">
+              {teacherName && (
+                <span className="flex items-center">
+                  <User className="h-3 w-3 mr-1" />
+                  {teacherName}
+                </span>
+              )}
+              {recording.category && (
+                <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                  {recording.category}
+                </span>
+              )}
+            </div>
+
+            {/* Recording Details */}
+            <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400">
+              <span className="flex items-center">
+                <Eye className="h-3 w-3 mr-1" />
+                {recording.views || 0} views
+              </span>
+              <span className="flex items-center">
+                <Clock className="h-3 w-3 mr-1" />
+                {formatDuration(recording.duration)}
+              </span>
+              {recording.averageRating > 0 && (
+                <span className="flex items-center">
+                  <Star className="h-3 w-3 mr-1 text-yellow-500 fill-current" />
+                  {recording.averageRating.toFixed(1)}
+                </span>
+              )}
+              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                recording.status === 'completed'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                  : recording.status === 'processing'
+                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+              }`}>
+                {recording.status}
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            {progress > 0 && progress < 100 && (
+              <div className="mt-3">
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  <span>Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-500`}
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Tags */}
+            {recording.tags && recording.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {recording.tags.slice(0, 3).map((tag, tagIndex) => (
+                  <span
+                    key={`tag-${recording.id}-${tagIndex}`}
+                    className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {recording.tags.length > 3 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                    +{recording.tags.length - 3} more
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-4">
+          <Button
+            size="sm"
+            onClick={() => onWatch(recording)}
+            disabled={actionLoading[recording.id]}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          >
+            {actionLoading[recording.id] ? (
+              <LoadingSpinner size="sm" className="mr-1" />
+            ) : (
+              <PlayCircle className="h-3 w-3 mr-1" />
+            )}
+            {recording.recordingUrl?.includes('drive.google.com') ? 'Watch on Drive' : 'Watch'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Session Card Component
+const SessionCard = React.memo(({ 
+  session, 
+  onJoin, 
+  getTeacherName, 
+  teachers,
+  type = 'teacher'
+}) => {
+  const dateTime = formatDateTime(session.scheduledTime)
+  const teacherName = getTeacherName(session.createdBy)
+  
+  return (
+    <div
+      className="flex items-center p-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 transition-all duration-200 group cursor-pointer"
+      onClick={() => onJoin(session)}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {session.topic || session.title || 'Untitled Session'}
+        </p>
+        {type === 'teacher' && (
+          <div className="flex items-center space-x-2 mt-1">
+            <User className="h-3 w-3 text-gray-500" />
+            <p className="text-xs text-gray-700 dark:text-gray-300 truncate">
+              {teacherName}
+            </p>
+          </div>
+        )}
+        <div className="flex items-center space-x-2 mt-1">
+          <Clock className="h-3 w-3 text-gray-500" />
+          <p className="text-xs text-gray-700 dark:text-gray-300">
+            {dateTime.date} at {dateTime.time}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <div className={`w-2 h-2 rounded-full animate-pulse ${
+          type === 'teacher' ? 'bg-green-500' : 'bg-red-500'
+        }`} />
+        <PlayCircle className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </div>
+  )
+})
 
 const StudentDashboard = () => {
   const { t } = useTranslation()
@@ -44,10 +289,6 @@ const StudentDashboard = () => {
   const [teacherFilter, setTeacherFilter] = useState('all')
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortOrder, setSortOrder] = useState('desc')
-  const [recentSessions, setRecentSessions] = useState([])
-  const [teacherSessions, setTeacherSessions] = useState([])
-  const [loadingSessions, setLoadingSessions] = useState(false)
-  const [error, setError] = useState(null)
   const [actionLoading, setActionLoading] = useState({})
   const [showFilters, setShowFilters] = useState(false)
 
@@ -55,40 +296,34 @@ const StudentDashboard = () => {
   const isApproved = userProfile?.isActive
   const studentName = userProfile?.displayName || user?.email?.split('@')[0]
 
-  // Enhanced session loading with error handling
-  const loadRecentSessions = async () => {
-    try {
-      setLoadingSessions(true)
-      setError(null)
-      const sessions = await sessionService.getPublicSessions({
-        status: 'scheduled',
-        dateRange: 'upcoming',
-        limit: 10
-      })
-      setRecentSessions(sessions)
-    } catch (error) {
-      console.error('Error loading recent sessions:', error)
-      setError('Failed to load upcoming sessions')
-    } finally {
-      setLoadingSessions(false)
+  // Combined data fetching for sessions
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery(
+    ['studentSessions', studentId],
+    async () => {
+      const [recentSessions, teacherSessions] = await Promise.all([
+        sessionService.getPublicSessions({
+          status: 'scheduled',
+          dateRange: 'upcoming',
+          limit: 10
+        }),
+        sessionService.getTeacherSessionsForStudents({
+          limit: 20,
+          daysAhead: 30
+        })
+      ])
+      return { recentSessions, teacherSessions }
+    },
+    {
+      enabled: !!studentId && isApproved,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
     }
-  }
+  )
 
-  const loadTeacherSessions = async () => {
-    try {
-      setError(null)
-      const sessions = await sessionService.getTeacherSessionsForStudents({
-        limit: 20,
-        daysAhead: 30
-      })
-      setTeacherSessions(sessions)
-    } catch (error) {
-      console.error('Error loading teacher sessions:', error)
-      setError('Failed to load teacher sessions')
-    }
-  }
+  const recentSessions = sessionsData?.recentSessions || []
+  const teacherSessions = sessionsData?.teacherSessions || []
 
-  // FIXED: Use recording service instead of non-existent session method
+  // Recordings query
   const {
     data: recordingsData,
     fetchNextPage,
@@ -110,17 +345,13 @@ const StudentDashboard = () => {
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
       enabled: !!studentId && isApproved,
-      retry: 3,
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retry: 2,
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
-      onError: (error) => {
-        console.error('Error fetching recordings:', error)
-        setError('Failed to load learning content')
-      }
     }
   )
 
+  // Courses query
   const {
     data: courses = [],
     isLoading: coursesLoading,
@@ -131,13 +362,10 @@ const StudentDashboard = () => {
     {
       enabled: !!studentId && isApproved,
       staleTime: 10 * 60 * 1000,
-      onError: (error) => {
-        console.error('Error fetching courses:', error)
-        setError('Failed to load courses')
-      }
     }
   )
 
+  // Teachers query
   const {
     data: teachers = [],
     isLoading: teachersLoading,
@@ -148,104 +376,106 @@ const StudentDashboard = () => {
     {
       enabled: !!studentId && isApproved,
       select: (data) => data.filter(user => user.role === 'teacher' && user.isActive),
-      onError: (error) => {
-        console.error('Error fetching teachers:', error)
-        setError('Failed to load teacher information')
-      }
     }
   )
 
-  useEffect(() => {
-    if (studentId && isApproved) {
-      loadRecentSessions()
-      loadTeacherSessions()
-    }
-  }, [studentId, isApproved])
-
-  // Use recordings directly from recording service
+  // Use recordings directly
   const allRecordings = recordingsData?.pages.flatMap(page => page.recordings || []) || []
 
-  // Enhanced filtering with better performance
+  // Optimized filtering with early returns
   const filteredRecordings = useMemo(() => {
-    return allRecordings
-      .filter(recording => {
-        const matchesSearch =
-          recording.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          recording.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          recording.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          recording.instructorName?.toLowerCase().includes(searchTerm.toLowerCase())
-       
-        const matchesStatus =
-          statusFilter === 'all' ||
-          recording.status === statusFilter ||
-          (statusFilter === 'watched' && recording.watched) ||
-          (statusFilter === 'new' && !recording.watched)
-        
-        const matchesCategory =
-          categoryFilter === 'all' ||
-          recording.category === categoryFilter
-        
-        const matchesTeacher =
-          teacherFilter === 'all' ||
-          recording.instructorId === teacherFilter
+    if (!allRecordings.length) return []
 
-        return matchesSearch && matchesStatus && matchesCategory && matchesTeacher
-      })
-      .sort((a, b) => {
-        let aValue = a[sortBy] || 0
-        let bValue = b[sortBy] || 0
-        if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'scheduledTime') {
-          aValue = new Date(aValue).getTime()
-          bValue = new Date(bValue).getTime()
-        }
-        if (sortOrder === 'desc') {
-          return bValue - aValue
-        }
-        return aValue - bValue
-      })
+    let filtered = allRecordings
+
+    // Apply search filter first (most expensive)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(recording => 
+        recording.title?.toLowerCase().includes(searchLower) ||
+        recording.description?.toLowerCase().includes(searchLower) ||
+        recording.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
+        recording.instructorName?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Apply other filters
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(recording => 
+        recording.status === statusFilter ||
+        (statusFilter === 'watched' && recording.watched) ||
+        (statusFilter === 'new' && !recording.watched)
+      )
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(recording => recording.category === categoryFilter)
+    }
+
+    if (teacherFilter !== 'all') {
+      filtered = filtered.filter(recording => recording.instructorId === teacherFilter)
+    }
+
+    // Sort
+    return filtered.sort((a, b) => {
+      let aValue = a[sortBy] || 0
+      let bValue = b[sortBy] || 0
+      
+      if (sortBy === 'createdAt' || sortBy === 'updatedAt' || sortBy === 'scheduledTime') {
+        aValue = new Date(aValue).getTime()
+        bValue = new Date(bValue).getTime()
+      }
+      
+      return sortOrder === 'desc' ? bValue - aValue : aValue - bValue
+    })
   }, [allRecordings, searchTerm, statusFilter, categoryFilter, teacherFilter, sortBy, sortOrder])
 
+  // Filter teacher sessions
   const filteredTeacherSessions = useMemo(() => {
-    return teacherSessions
-      .filter(session => {
-        const matchesTeacher = teacherFilter === 'all' || session.createdBy === teacherFilter
-        return matchesTeacher
-      })
-      .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime))
+    return teacherFilter === 'all' 
+      ? teacherSessions 
+      : teacherSessions.filter(session => session.createdBy === teacherFilter)
   }, [teacherSessions, teacherFilter])
 
-  // Enhanced stats calculation
-  const stats = useMemo(() => ({
-    enrolledClasses: courses.length,
-    availableRecordings: allRecordings.filter(r => r.isPublished && r.status === 'completed').length,
-    teachers: teachers.length,
-    totalWatchTime: allRecordings.reduce((sum, r) => sum + (r.duration || 0), 0),
-    completedRecordings: allRecordings.filter(r => r.watched).length,
-    upcomingSessions: recentSessions.length,
-    teacherUpcomingSessions: filteredTeacherSessions.length,
-    googleMeetSessions: allRecordings.filter(r => r.meetLink).length,
-    totalProgress: allRecordings.length > 0 
-      ? Math.round((allRecordings.filter(r => r.watched).length / allRecordings.length) * 100)
+  // Optimized stats calculation
+  const stats = useMemo(() => {
+    const completedRecordings = allRecordings.filter(r => r.watched).length
+    const totalProgress = allRecordings.length > 0 
+      ? Math.round((completedRecordings / allRecordings.length) * 100)
       : 0
-  }), [courses, allRecordings, teachers, recentSessions, filteredTeacherSessions])
 
+    return {
+      enrolledClasses: courses.length,
+      availableRecordings: allRecordings.filter(r => r.isPublished && r.status === 'completed').length,
+      teachers: teachers.length,
+      totalWatchTime: allRecordings.reduce((sum, r) => sum + (r.duration || 0), 0),
+      completedRecordings,
+      upcomingSessions: recentSessions.length,
+      teacherUpcomingSessions: filteredTeacherSessions.length,
+      googleMeetSessions: allRecordings.filter(r => r.meetLink).length,
+      totalProgress
+    }
+  }, [courses, allRecordings, teachers, recentSessions, filteredTeacherSessions])
+
+  // Memoized teacher name function
+  const getTeacherName = useCallback((teacherId) => {
+    const teacher = teachers.find(t => t.uid === teacherId)
+    return teacher?.displayName || teacher?.email?.split('@')[0] || 'Unknown Teacher'
+  }, [teachers])
+
+  // Refresh handler
   const handleRefresh = useCallback(() => {
     refetchRecordings()
-    loadRecentSessions()
-    loadTeacherSessions()
+    // Sessions will refetch automatically due to query invalidation
   }, [refetchRecordings])
 
+  // Recording watch handler
   const handleWatchRecording = useCallback((recording) => {
     if (recording.recordingUrl) {
-      // Track viewing progress
       setActionLoading(prev => ({ ...prev, [recording.id]: true }))
       
-      // Open in new tab for Google Drive links
       if (recording.recordingUrl.includes('drive.google.com')) {
         window.open(recording.recordingUrl, '_blank')
-      } else {
-        // For embedded videos, you can implement a modal player
-        console.log('Navigate to recording player:', recording.id)
       }
       
       setTimeout(() => {
@@ -254,70 +484,18 @@ const StudentDashboard = () => {
     }
   }, [])
 
+  // Session join handler
   const handleJoinSession = useCallback((session) => {
     if (session.meetLink || session.googleMeetLink) {
       window.open(session.meetLink || session.googleMeetLink, '_blank')
     }
   }, [])
 
-  const formatDuration = useCallback((seconds) => {
-    if (!seconds) return '0:00'
-    const hours = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = Math.floor(seconds % 60)
-   
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }, [])
-
-  const formatDateTime = useCallback((date) => {
-    if (!date) return 'TBD'
-    const dateObj = new Date(date)
-    return {
-      date: dateObj.toLocaleDateString(),
-      time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      full: dateObj.toLocaleString()
-    }
-  }, [])
-
-  const getStatusColor = useCallback((status) => {
-    switch (status) {
-      case 'completed': return 'from-green-500 to-emerald-500'
-      case 'processing': return 'from-yellow-500 to-orange-500'
-      case 'recording': return 'from-blue-500 to-cyan-500'
-      case 'failed': return 'from-red-500 to-pink-500'
-      default: return 'from-gray-500 to-gray-600'
-    }
-  }, [])
-
-  const getStatusIcon = useCallback((status) => {
-    switch (status) {
-      case 'completed': return CheckCircle
-      case 'processing': return Clock
-      case 'recording': return PlayCircle
-      case 'failed': return XCircle
-      default: return Video
-    }
-  }, [])
-
-  const getProgressColor = useCallback((progress) => {
-    if (progress >= 90) return 'from-green-500 to-emerald-500'
-    if (progress >= 50) return 'from-yellow-500 to-orange-500'
-    return 'from-blue-500 to-cyan-500'
-  }, [])
-
-  const getTeacherName = useCallback((teacherId) => {
-    const teacher = teachers.find(t => t.uid === teacherId)
-    return teacher?.displayName || teacher?.email?.split('@')[0] || 'Unknown Teacher'
-  }, [teachers])
-
-  // Enhanced stat cards with animations
+  // Memoized stat cards
   const statCards = useMemo(() => [
     {
       id: 'enrolled-classes',
-      name: t('student.stats.enrolledClasses', 'Enrolled Classes'),
+      name: 'Enrolled Classes',
       value: stats.enrolledClasses.toString(),
       icon: BookOpen,
       change: `${courses.filter(c => c.isPublished).length} active`,
@@ -329,7 +507,7 @@ const StudentDashboard = () => {
     },
     {
       id: 'available-recordings',
-      name: t('student.stats.availableRecordings', 'Available Recordings'),
+      name: 'Available Recordings',
       value: stats.availableRecordings.toString(),
       icon: Video,
       change: `${stats.completedRecordings} watched`,
@@ -341,7 +519,7 @@ const StudentDashboard = () => {
     },
     {
       id: 'teachers',
-      name: t('student.stats.teachers', 'Teachers'),
+      name: 'Teachers',
       value: stats.teachers.toString(),
       icon: Users,
       change: `${stats.teacherUpcomingSessions} upcoming`,
@@ -353,7 +531,7 @@ const StudentDashboard = () => {
     },
     {
       id: 'learning-progress',
-      name: t('student.stats.learningProgress', 'Learning Progress'),
+      name: 'Learning Progress',
       value: `${stats.totalProgress}%`,
       icon: TrendingUp,
       change: `${Math.round(stats.totalWatchTime / 3600)} hours watched`,
@@ -363,159 +541,71 @@ const StudentDashboard = () => {
       description: 'Your overall progress',
       loading: recordingsLoading
     }
-  ], [stats, courses, t, coursesLoading, recordingsLoading, teachersLoading])
+  ], [stats, courses, coursesLoading, recordingsLoading, teachersLoading])
 
-  // Enhanced quick actions
-  const quickActions = useMemo(() => [
-    {
-      id: 'browse-classes',
-      title: t('student.actions.browseClasses', 'Browse Classes'),
-      description: 'Discover new courses to enroll',
-      icon: BookOpen,
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-500/10 dark:bg-blue-500/20',
-      action: () => (window.location.href = '/courses')
-    },
-    {
-      id: 'upcoming-sessions',
-      title: t('student.actions.upcomingSessions', 'Upcoming Sessions'),
-      description: 'Join live classes and meetings',
-      icon: Calendar,
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-500/10 dark:bg-green-500/20',
-      action: () => (window.location.href = '/sessions')
-    },
-    {
-      id: 'teacher-sessions',
-      title: t('student.actions.teacherSessions', 'Teacher Sessions'),
-      description: 'View all instructor sessions',
-      icon: Users,
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-500/10 dark:bg-purple-500/20',
-      action: () => (window.location.href = '/sessions?view=teachers')
-    },
-    {
-      id: 'my-progress',
-      title: t('student.actions.myProgress', 'My Progress'),
-      description: 'Track your learning journey',
-      icon: BarChart3,
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-500/10 dark:bg-orange-500/20',
-      action: () => (window.location.href = '/progress')
-    }
-  ], [t])
-
-  const sortOptions = [
-    { value: 'createdAt', label: 'Date Added' },
-    { value: 'title', label: 'Title' },
-    { value: 'duration', label: 'Duration' },
-    { value: 'views', label: 'Popularity' },
-    { value: 'rating', label: 'Rating' }
-  ]
-
-  const categoryOptions = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'lecture', label: 'Lectures' },
-    { value: 'tutorial', label: 'Tutorials' },
-    { value: 'workshop', label: 'Workshops' },
-    { value: 'qna', label: 'Q&A Sessions' }
-  ]
-
-  const teacherOptions = [
+  // Teacher options
+  const teacherOptions = useMemo(() => [
     { value: 'all', label: 'All Teachers' },
     ...teachers.map(teacher => ({
       value: teacher.uid,
       label: teacher.displayName || teacher.email?.split('@')[0] || 'Unknown Teacher'
     }))
-  ]
+  ], [teachers])
 
-  // AUTH GUARD: Loading state
+  // Error state
+  const error = recordingsError || coursesError || teachersError
+
+  // Auth guard states
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-            {t('common.loading', 'Loading your dashboard...')}
+            Loading your dashboard...
           </p>
         </div>
       </div>
     )
   }
 
-  // AUTH GUARD: Not logged in
   if (!studentId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900">
         <div className="text-center max-w-md p-8">
           <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {t('auth.required', 'Authentication Required')}
+            Authentication Required
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {t('auth.pleaseLogin', 'Please log in to access the student dashboard.')}
+            Please log in to access the student dashboard.
           </p>
           <Button
             onClick={() => (window.location.href = '/login')}
             className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg"
           >
-            {t('auth.login', 'Sign in')}
+            Sign in
           </Button>
         </div>
       </div>
     )
   }
 
-  // AUTH GUARD: Not approved
   if (!isApproved) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900">
         <div className="text-center max-w-md p-8">
           <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {t('student.pendingApproval', 'Pending Approval')}
+            Pending Approval
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {t('student.pendingApprovalDescription', 'Your account is awaiting admin approval. You will be notified via email once approved.')}
+            Your account is awaiting admin approval. You will be notified via email once approved.
           </p>
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              {t('student.contactAdmin', 'Please contact the administrator if you have been waiting for more than 24 hours.')}
+              Please contact the administrator if you have been waiting for more than 24 hours.
             </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ERROR STATE
-  if (recordingsError || coursesError || teachersError) {
-    const error = recordingsError || coursesError || teachersError
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900">
-        <div className="text-center max-w-md p-8">
-          <AlertCircle className="mx-auto h-16 w-16 text-red-400 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            {t('error.loadingFailed', 'Failed to load content')}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {t('error.failedToLoadContent', 'We encountered an error while loading your dashboard content.')}
-          </p>
-          <div className="space-y-3">
-            <Button
-              onClick={handleRefresh}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 w-full shadow-lg"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t('common.tryAgain', 'Try Again')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="w-full"
-            >
-              {t('common.reloadPage', 'Reload Page')}
-            </Button>
           </div>
         </div>
       </div>
@@ -529,10 +619,10 @@ const StudentDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent mb-2 sm:mb-3">
-              {t('student.dashboard.title', 'Student Dashboard')}
+              Student Dashboard
             </h1>
             <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
-              {t('student.dashboard.subtitle', 'Access your classes, recordings, and learning materials')}
+              Access your classes, recordings, and learning materials
             </p>
             {studentName && (
               <div className="flex items-center mt-2 space-x-2">
@@ -556,14 +646,14 @@ const StudentDashboard = () => {
               className="hidden lg:flex items-center"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingRecordings ? 'animate-spin' : ''}`} />
-              {t('common.refresh', 'Refresh')}
+              Refresh
             </Button>
             <Button
               onClick={() => (window.location.href = '/courses')}
               className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg"
             >
               <BookOpen className="h-4 w-4 mr-2" />
-              {t('student.actions.browseClasses', 'Browse Classes')}
+              Browse Classes
             </Button>
           </div>
         </div>
@@ -571,29 +661,29 @@ const StudentDashboard = () => {
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-lg border border-red-200/50 dark:border-red-800/50 rounded-2xl p-4 flex items-center animate-fade-in">
+        <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-lg border border-red-200/50 dark:border-red-800/50 rounded-2xl p-4 flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
-          <p className="text-red-700 dark:text-red-300 text-sm flex-1">{error}</p>
+          <p className="text-red-700 dark:text-red-300 text-sm flex-1">
+            Failed to load content. Please try refreshing.
+          </p>
           <button
-            onClick={() => setError(null)}
+            onClick={handleRefresh}
             className="ml-4 text-red-500 hover:text-red-700 flex-shrink-0"
           >
-            <XCircle className="h-4 w-4" />
+            <RefreshCw className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Stats Grid - FIXED: Simplified className structure */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((stat, index) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon
-          const animationDelay = { animationDelay: `${index * 100}ms` }
           
           return (
             <div
               key={stat.id}
               className="group relative overflow-hidden rounded-3xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
-              style={animationDelay}
             >
               <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${stat.bgColor} rounded-3xl`} />
               <div className="relative z-10">
@@ -638,48 +728,8 @@ const StudentDashboard = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 sm:gap-8">
-        {/* Quick Actions & Sessions */}
+        {/* Sessions Sidebar */}
         <div className="xl:col-span-1 space-y-6">
-          {/* Quick Actions */}
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                {t('student.actions.quickActions', 'Quick Actions')}
-              </h3>
-              <Zap className="h-5 w-5 text-yellow-500" />
-            </div>
-            <div className="space-y-3 sm:space-y-4">
-              {quickActions.map((action, index) => {
-                const Icon = action.icon
-                const animationDelay = { animationDelay: `${index * 150}ms` }
-                
-                return (
-                  <button
-                    key={action.id}
-                    onClick={action.action}
-                    className="w-full flex items-center p-3 sm:p-4 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 hover:scale-105 transition-all duration-300 group"
-                    style={animationDelay}
-                  >
-                    <div className={`p-2 rounded-xl ${action.bgColor} mr-3 sm:mr-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${action.color}`} />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                        {action.title}
-                      </h4>
-                      <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                        {action.description}
-                      </p>
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* Teacher Sessions */}
           <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-300">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -690,42 +740,16 @@ const StudentDashboard = () => {
             </div>
             <div className="space-y-3">
               {filteredTeacherSessions.length > 0 ? (
-                filteredTeacherSessions.slice(0, 5).map((session, index) => {
-                  const dateTime = formatDateTime(session.scheduledTime)
-                  const teacherName = getTeacherName(session.createdBy)
-                  const animationDelay = { animationDelay: `${index * 100}ms` }
-                  
-                  return (
-                    <div
-                      key={`teacher-session-${session.id}`}
-                      className="flex items-center p-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 transition-all duration-200 group cursor-pointer"
-                      onClick={() => handleJoinSession(session)}
-                      style={animationDelay}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {session.topic || session.title || 'Untitled Session'}
-                        </p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <User className="h-3 w-3 text-gray-500" />
-                          <p className="text-xs text-gray-700 dark:text-gray-300 truncate">
-                            {teacherName}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Clock className="h-3 w-3 text-gray-500" />
-                          <p className="text-xs text-gray-700 dark:text-gray-300">
-                            {dateTime.date} at {dateTime.time}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        <PlayCircle className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  )
-                })
+                filteredTeacherSessions.slice(0, 5).map((session) => (
+                  <SessionCard
+                    key={`teacher-session-${session.id}`}
+                    session={session}
+                    onJoin={handleJoinSession}
+                    getTeacherName={getTeacherName}
+                    teachers={teachers}
+                    type="teacher"
+                  />
+                ))
               ) : (
                 <div className="text-center py-4 text-gray-600 dark:text-gray-400">
                   <Users className="mx-auto h-8 w-8 mb-2" />
@@ -755,40 +779,21 @@ const StudentDashboard = () => {
               <Calendar className="h-5 w-5 text-blue-500" />
             </div>
             <div className="space-y-3">
-              {loadingSessions ? (
+              {sessionsLoading ? (
                 <div className="flex justify-center py-4">
                   <LoadingSpinner size="sm" />
                 </div>
               ) : recentSessions.length > 0 ? (
-                recentSessions.map((session, index) => {
-                  const dateTime = formatDateTime(session.scheduledTime)
-                  const animationDelay = { animationDelay: `${index * 100}ms` }
-                  
-                  return (
-                    <div
-                      key={`recent-session-${session.id}`}
-                      className="flex items-center p-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 transition-all duration-200 group cursor-pointer"
-                      onClick={() => handleJoinSession(session)}
-                      style={animationDelay}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {session.topic || session.title || 'Untitled Session'}
-                        </p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Clock className="h-3 w-3 text-gray-500" />
-                          <p className="text-xs text-gray-700 dark:text-gray-300">
-                            {dateTime.date} at {dateTime.time}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                        <PlayCircle className="h-4 w-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  )
-                })
+                recentSessions.map((session) => (
+                  <SessionCard
+                    key={`recent-session-${session.id}`}
+                    session={session}
+                    onJoin={handleJoinSession}
+                    getTeacherName={getTeacherName}
+                    teachers={teachers}
+                    type="recent"
+                  />
+                ))
               ) : (
                 <div className="text-center py-4 text-gray-600 dark:text-gray-400">
                   <Calendar className="mx-auto h-8 w-8 mb-2" />
@@ -821,7 +826,7 @@ const StudentDashboard = () => {
                   <Input
                     type="text"
                     className="block w-full pl-10 pr-3 py-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
-                    placeholder={t('common.searchPlaceholder', 'Search recordings by title, description, or instructor...')}
+                    placeholder="Search recordings by title, description, or instructor..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -856,7 +861,7 @@ const StudentDashboard = () => {
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
-                  {categoryOptions.map(option => (
+                  {CATEGORY_OPTIONS.map(option => (
                     <option key={`category-${option.value}`} value={option.value}>
                       {option.label}
                     </option>
@@ -867,18 +872,18 @@ const StudentDashboard = () => {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="all">All Status</option>
-                  <option value="new">New</option>
-                  <option value="watched">Watched</option>
-                  <option value="completed">Completed</option>
-                  <option value="processing">Processing</option>
+                  {STATUS_OPTIONS.map(option => (
+                    <option key={`status-${option.value}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
                 <select
                   className="block w-full sm:w-auto px-3 py-3 text-sm rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
-                  {sortOptions.map(option => (
+                  {SORT_OPTIONS.map(option => (
                     <option key={`sort-${option.value}`} value={option.value}>
                       {option.label}
                     </option>
@@ -902,10 +907,10 @@ const StudentDashboard = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                {t('student.dashboard.availableRecordings', 'Available Recordings')}
+                Available Recordings
               </h3>
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                {filteredRecordings.length} {t('common.items', 'items')}
+                {filteredRecordings.length} items
                 {searchTerm && ` • matching "${searchTerm}"`}
                 {teacherFilter !== 'all' && ` • by ${teacherOptions.find(t => t.value === teacherFilter)?.label}`}
               </span>
@@ -916,150 +921,23 @@ const StudentDashboard = () => {
                 <div className="text-center">
                   <LoadingSpinner size="lg" />
                   <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                    {t('common.loading', 'Loading recordings...')}
+                    Loading recordings...
                   </p>
                 </div>
               </div>
             ) : filteredRecordings.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                  {filteredRecordings.map((recording, index) => {
-                    const StatusIcon = getStatusIcon(recording.status)
-                    const progress = recording.progress || (recording.watched ? 100 : 0)
-                    const animationDelay = { animationDelay: `${index * 50}ms` }
-                   
-                    return (
-                      <div
-                        key={`recording-${recording.id}`}
-                        className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-6 shadow-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
-                        style={animationDelay}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-4 flex-1 min-w-0">
-                            <div className={`p-3 rounded-2xl bg-gradient-to-br ${getStatusColor(recording.status)}`}>
-                              <StatusIcon className="h-6 w-6 text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <h4 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-1 flex-1">
-                                  {recording.title}
-                                  {recording.meetLink && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-full">
-                                      Google Meet
-                                    </span>
-                                  )}
-                                </h4>
-                                <div className="flex items-center space-x-2 ml-3">
-                                  {recording.watched && (
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                  )}
-                                  {recording.isFeatured && (
-                                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                  )}
-                                </div>
-                              </div>
-                             
-                              <p className="text-gray-700 dark:text-gray-300 text-sm mb-3 line-clamp-2">
-                                {recording.description || t('recording.noDescription', 'No description provided')}
-                              </p>
-
-                              {/* Instructor and Category */}
-                              <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400 mb-3">
-                                {recording.instructorName && (
-                                  <span className="flex items-center">
-                                    <User className="h-3 w-3 mr-1" />
-                                    {recording.instructorName}
-                                  </span>
-                                )}
-                                {recording.category && (
-                                  <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                    {recording.category}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Recording Details */}
-                              <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400">
-                                <span className="flex items-center">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  {recording.views || 0} views
-                                </span>
-                                <span className="flex items-center">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {formatDuration(recording.duration)}
-                                </span>
-                                {recording.averageRating > 0 && (
-                                  <span className="flex items-center">
-                                    <Star className="h-3 w-3 mr-1 text-yellow-500 fill-current" />
-                                    {recording.averageRating.toFixed(1)}
-                                  </span>
-                                )}
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                                  recording.status === 'completed'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                    : recording.status === 'processing'
-                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                }`}>
-                                  {recording.status}
-                                </span>
-                              </div>
-
-                              {/* Progress Bar */}
-                              {progress > 0 && progress < 100 && (
-                                <div className="mt-3">
-                                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                    <span>Progress</span>
-                                    <span>{progress}%</span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div
-                                      className={`h-2 rounded-full bg-gradient-to-r ${getProgressColor(progress)} transition-all duration-500`}
-                                      style={{ width: `${progress}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Tags */}
-                              {recording.tags && recording.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {recording.tags.slice(0, 3).map((tag, tagIndex) => (
-                                    <span
-                                      key={`tag-${recording.id}-${tagIndex}`}
-                                      className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {recording.tags.length > 3 && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                                      +{recording.tags.length - 3} more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-4">
-                            <Button
-                              size="sm"
-                              onClick={() => handleWatchRecording(recording)}
-                              disabled={actionLoading[recording.id]}
-                              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                            >
-                              {actionLoading[recording.id] ? (
-                                <LoadingSpinner size="sm" className="mr-1" />
-                              ) : (
-                                <PlayCircle className="h-3 w-3 mr-1" />
-                              )}
-                              {recording.recordingUrl?.includes('drive.google.com') ? 'Watch on Drive' : 'Watch'}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                  {filteredRecordings.map((recording) => (
+                    <RecordingCard
+                      key={`recording-${recording.id}`}
+                      recording={recording}
+                      onWatch={handleWatchRecording}
+                      actionLoading={actionLoading}
+                      getTeacherName={getTeacherName}
+                      teachers={teachers}
+                    />
+                  ))}
                 </div>
 
                 {/* Load More Button */}
@@ -1088,14 +966,14 @@ const StudentDashboard = () => {
                 <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' || teacherFilter !== 'all'
-                    ? t('student.dashboard.noMatchingRecordings', 'No matching recordings')
-                    : t('student.dashboard.noRecordings', 'No recordings available')
+                    ? 'No matching recordings'
+                    : 'No recordings available'
                   }
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' || teacherFilter !== 'all'
-                    ? t('student.dashboard.tryAdjustingFilters', 'Try adjusting your search or filters.')
-                    : t('student.dashboard.enrollInClass', 'Enroll in a class to access recordings.')
+                    ? 'Try adjusting your search or filters.'
+                    : 'Enroll in a class to access recordings.'
                   }
                 </p>
                 <Button
@@ -1103,7 +981,7 @@ const StudentDashboard = () => {
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
-                  {t('student.actions.browseClasses', 'Browse Classes')}
+                  Browse Classes
                 </Button>
               </div>
             )}

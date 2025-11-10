@@ -6,15 +6,15 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported } from "firebase/analytics";
 
-// --- Firebase Configuration ---
+// --- Firebase Configuration (NEW PROJECT) ---
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyC3uGr4F17VK-6OY_dyGSSclVuf_QyuSQc",
+  authDomain: "uniquefoundation-org.firebaseapp.com",
+  projectId: "uniquefoundation-org",
+  storageBucket: "uniquefoundation-org.firebasestorage.app",
+  messagingSenderId: "1021315264601",
+  appId: "1:1021315264601:web:7954fffae51c3d1cc48148",
+  measurementId: "G-XXXXXXXXXX" // Optional: replace with your Measurement ID if using Analytics
 };
 
 // --- Initialize Firebase (prevent re-initialization) ---

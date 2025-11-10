@@ -204,7 +204,7 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
     ]
   }
 
-  // Common routes for all roles
+  // Common routes for all roles (removed subscription)
   const commonRoutes = [
     { 
       id: 'notifications', 
@@ -226,13 +226,6 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
       icon: User, 
       path: '/profile',
       description: t('sidebar.profile_desc', 'Manage your profile settings')
-    },
-    { 
-      id: 'subscription', 
-      label: t('sidebar.subscription', 'Subscription'), 
-      icon: CreditCard, 
-      path: '/subscription',
-      description: t('sidebar.subscription_desc', 'Manage your subscription')
     },
     { 
       id: 'help', 
@@ -347,8 +340,12 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
         <div className="flex items-center justify-between h-20 px-6 border-b border-white/30 dark:border-gray-700/30">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="relative">
-              <div className={`w-12 h-12 bg-gradient-to-br ${roleColors.gradient} rounded-2xl flex items-center justify-center shadow-lg backdrop-blur-sm`}>
-                <Video className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg backdrop-blur-sm overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="Unique Foundation Logo" 
+                  className="w-full h-full rounded-full object-cover"
+                />
               </div>
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-2 border-white dark:border-gray-900 rounded-full shadow-sm"></div>
             </div>

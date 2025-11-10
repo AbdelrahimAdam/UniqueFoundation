@@ -1,79 +1,82 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import LoadingSpinner from '@/components/UI/LoadingSpinner.jsx';
-import Login from '@/pages/Auth/Login.jsx';
-import Register from '@/pages/Auth/Register.jsx';
 
-// Unified layout
-import Layout from '@/components/Layout/Layout.jsx';
+// Lazy load auth pages
+const Login = lazy(() => import('@/pages/Auth/Login.jsx'));
+const Register = lazy(() => import('@/pages/Auth/Register.jsx'));
 
-// Dashboards
-import AdminDashboard from '@/pages/Admin/Dashboard.jsx';
-import TeacherDashboard from '@/pages/Teacher/Dashboard.jsx';
-import StudentDashboard from '@/pages/Student/Dashboard.jsx';
+// Lazy load layout
+const Layout = lazy(() => import('@/components/Layout/Layout.jsx'));
 
-// Admin pages
-import UserManagement from '@/pages/Admin/UserManagement.jsx';
-import CourseManagement from '@/pages/Admin/CourseManagement.jsx';
-import SessionManagement from '@/pages/Admin/SessionManagement.jsx';
-import Analytics from '@/pages/Admin/Analytics.jsx';
+// Lazy load dashboards
+const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard.jsx'));
+const TeacherDashboard = lazy(() => import('@/pages/Teacher/Dashboard.jsx'));
+const StudentDashboard = lazy(() => import('@/pages/Student/Dashboard.jsx'));
 
-// Teacher pages
-import TeacherRecordings from '@/pages/Teacher/TeacherRecordings.jsx';
-import TeacherSessions from '@/pages/Teacher/TeacherSessions.jsx';
-import TeacherStudents from '@/pages/Teacher/TeacherStudents.jsx';
+// Lazy load admin pages
+const UserManagement = lazy(() => import('@/pages/Admin/UserManagement.jsx'));
+const CourseManagement = lazy(() => import('@/pages/Admin/CourseManagement.jsx'));
+const SessionManagement = lazy(() => import('@/pages/Admin/SessionManagement.jsx'));
+const Analytics = lazy(() => import('@/pages/Admin/Analytics.jsx'));
 
-// Student pages
-import StudentSessions from '@/pages/Student/StudentSessions.jsx';
-import StudentRecordings from '@/pages/Student/StudentRecordings.jsx';
-import StudentCourses from '@/pages/Student/StudentCourses.jsx';
+// Lazy load teacher pages
+const TeacherRecordings = lazy(() => import('@/pages/Teacher/TeacherRecordings.jsx'));
+const TeacherSessions = lazy(() => import('@/pages/Teacher/TeacherSessions.jsx'));
+const TeacherStudents = lazy(() => import('@/pages/Teacher/TeacherStudents.jsx'));
 
-// Shared / Other components
-import RecordingDetail from '@/pages/Recording/RecordingDetail.jsx';
-import Profile from '@/pages/User/Profile.jsx';
-import SubscriptionPlans from '@/components/Subscription/SubscriptionPlans.jsx';
-import { getAuth } from 'firebase/auth';
+// Lazy load student pages
+const StudentSessions = lazy(() => import('@/pages/Student/StudentSessions.jsx'));
+const StudentRecordings = lazy(() => import('@/pages/Student/StudentRecordings.jsx'));
+const StudentCourses = lazy(() => import('@/pages/Student/StudentCourses.jsx'));
+
+// Lazy load shared components
+const RecordingDetail = lazy(() => import('@/pages/Recording/RecordingDetail.jsx'));
+const Profile = lazy(() => import('@/pages/User/Profile.jsx'));
+const SubscriptionPlans = lazy(() => import('@/components/Subscription/SubscriptionPlans.jsx'));
+
+// Loading component for Suspense fallback
+const PageLoading = ({ message = "Loading..." }) => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="text-center">
+      <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400" />
+      <p className="mt-4 text-gray-600 dark:text-gray-300">{message}</p>
+    </div>
+  </div>
+);
 
 // ✅ Force Logout Component
 const Logout = () => {
   const navigate = useNavigate()
+  const { signOut } = useAuth()
+
   useEffect(() => {
-    const auth = getAuth()
-    auth
-      .signOut()
-      .catch(() => {})
-      .finally(() => {
+    const performLogout = async () => {
+      try {
+        await signOut()
+      } catch (error) {
+        console.error('Logout error:', error)
+      } finally {
         localStorage.clear()
         sessionStorage.clear()
         navigate('/login', { replace: true })
-      })
-  }, [navigate])
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="text-center">
-        <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400" />
-        <p className="mt-4 text-gray-600 dark:text-gray-300">Logging out...</p>
-      </div>
-    </div>
-  )
+      }
+    }
+
+    performLogout()
+  }, [navigate, signOut])
+
+  return <PageLoading message="Logging out..." />
 }
 
-// ✅ Protected Route Component
+// ✅ Protected Route Component (Optimized)
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, userRole, userProfile, loading } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400" />
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading />
   }
 
   // If no user and not loading, redirect to login
@@ -83,14 +86,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
   // If user exists but profile is still loading, show loading
   if (user && !userProfile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400" />
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading user profile...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading message="Loading user profile..." />
   }
 
   // ⏳ Pending approval
@@ -98,7 +94,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center max-w-md mx-4">
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-3xl p-8 shadow-2xl transform hover:scale-105 transition-transform duration-300">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-3xl p-8 shadow-2xl">
             <div className="text-6xl mb-4">⏳</div>
             <h3 className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-4">
               Account Pending Approval
@@ -110,7 +106,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
               onClick={() => {
                 localStorage.clear()
                 sessionStorage.clear()
-                navigate('/logout', { replace: true })
+                window.location.href = '/logout'
               }}
               className="mt-6 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
             >
@@ -130,16 +126,12 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   return children
 }
 
-// ✅ Public Route Component
+// ✅ Public Route Component (Optimized)
 const PublicRoute = ({ children }) => {
   const { user, userRole, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
+    return <PageLoading />
   }
 
   // If user exists and not loading, redirect to appropriate dashboard
@@ -159,7 +151,7 @@ const PublicRoute = ({ children }) => {
   return children
 }
 
-// ✅ Role-based dashboard component (NOT a redirect)
+// ✅ Role-based dashboard component (Optimized)
 const RoleBasedDashboard = () => {
   const { userRole, userProfile, loading } = useAuth()
 
@@ -210,105 +202,62 @@ const RoleBasedDashboard = () => {
     )
   }
 
-  switch (userRole) {
-    case 'admin':
-      return <AdminDashboard />
-    case 'teacher':
-      return <TeacherDashboard />
-    case 'student':
-      return <StudentDashboard />
-    default:
-      return (
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center max-w-md">
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-3xl p-8 shadow-2xl">
-              <div className="text-4xl mb-4 text-red-500">❌</div>
-              <h3 className="text-xl font-bold text-red-800 dark:text-red-200 mb-4">
-                Invalid User Role
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300">
-                Your account has an invalid role. Please contact support.
-              </p>
-            </div>
+  const DashboardComponent = {
+    admin: AdminDashboard,
+    teacher: TeacherDashboard,
+    student: StudentDashboard
+  }[userRole]
+
+  if (!DashboardComponent) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center max-w-md">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-3xl p-8 shadow-2xl">
+            <div className="text-4xl mb-4 text-red-500">❌</div>
+            <h3 className="text-xl font-bold text-red-800 dark:text-red-200 mb-4">
+              Invalid User Role
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300">
+              Your account has an invalid role. Please contact support.
+            </p>
           </div>
         </div>
-      )
+      </div>
+    )
   }
+
+  return (
+    <Suspense fallback={<PageLoading message="Loading dashboard..." />}>
+      <DashboardComponent />
+    </Suspense>
+  )
 }
 
-// ✅ Placeholder components for missing pages
-const ReportsPage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Reports</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Reports content will be implemented here.</p>
-    </div>
-  </div>
-)
+// ✅ Lazy placeholder components for missing pages
+const createLazyPlaceholder = (title, description) => 
+  lazy(() => {
+    const PlaceholderComponent = () => (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">{title}</h1>
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
+          <p className="text-gray-600 dark:text-gray-400">{description}</p>
+        </div>
+      </div>
+    )
+    return Promise.resolve({ default: PlaceholderComponent })
+  })
 
-const MyCourses = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">My Courses</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">My courses content will be implemented here.</p>
-    </div>
-  </div>
-)
+// Lazy placeholder components
+const ReportsPage = createLazyPlaceholder('Reports', 'Reports content will be implemented here.');
+const MyCourses = createLazyPlaceholder('My Courses', 'My courses content will be implemented here.');
+const SchedulePage = createLazyPlaceholder('Schedule', 'Schedule content will be implemented here.');
+const MessagesPage = createLazyPlaceholder('Messages', 'Messages content will be implemented here.');
+const ProgressPage = createLazyPlaceholder('Progress', 'Progress tracking content will be implemented here.');
+const BrowseCourses = createLazyPlaceholder('Browse Courses', 'Browse courses content will be implemented here.');
+const NotificationsPage = createLazyPlaceholder('Notifications', 'Notifications content will be implemented here.');
+const HelpPage = createLazyPlaceholder('Help & Support', 'Help and support content will be implemented here.');
 
-const SchedulePage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Schedule</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Schedule content will be implemented here.</p>
-    </div>
-  </div>
-)
-
-const MessagesPage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Messages</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Messages content will be implemented here.</p>
-    </div>
-  </div>
-)
-
-const ProgressPage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Progress</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Progress tracking content will be implemented here.</p>
-    </div>
-  </div>
-)
-
-const BrowseCourses = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Browse Courses</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Browse courses content will be implemented here.</p>
-    </div>
-  </div>
-)
-
-const NotificationsPage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Notifications</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Notifications content will be implemented here.</p>
-    </div>
-  </div>
-)
-
-const HelpPage = () => (
-  <div className="p-6">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Help & Support</h1>
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-2xl">
-      <p className="text-gray-600 dark:text-gray-400">Help and support content will be implemented here.</p>
-    </div>
-  </div>
-)
-
+// ✅ Unauthorized Page (Not lazy - frequently accessed)
 const UnauthorizedPage = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
     <div className="text-center max-w-md mx-4">
@@ -331,7 +280,73 @@ const UnauthorizedPage = () => (
   </div>
 )
 
-// ✅ Main Routes
+// ✅ Route Layout Wrapper (Optimized)
+const RouteLayout = ({ role, children }) => (
+  <Suspense fallback={<PageLoading message="Loading layout..." />}>
+    <Layout role={role}>
+      <Suspense fallback={<PageLoading message="Loading page..." />}>
+        {children}
+      </Suspense>
+    </Layout>
+  </Suspense>
+)
+
+// ✅ Admin Routes (Optimized)
+const AdminRoutes = () => (
+  <Routes>
+    <Route path="dashboard" element={<AdminDashboard />} />
+    <Route path="users" element={<UserManagement />} />
+    <Route path="courses" element={<CourseManagement />} />
+    <Route path="sessions" element={<SessionManagement />} />
+    <Route path="analytics" element={<Analytics />} />
+    <Route path="reports" element={<ReportsPage />} />
+    <Route path="profile" element={<Profile />} />
+    <Route path="subscription" element={<SubscriptionPlans />} />
+    <Route path="notifications" element={<NotificationsPage />} />
+    <Route path="help" element={<HelpPage />} />
+    <Route path="" element={<Navigate to="dashboard" replace />} />
+  </Routes>
+)
+
+// ✅ Teacher Routes (Optimized)
+const TeacherRoutes = () => (
+  <Routes>
+    <Route path="dashboard" element={<TeacherDashboard />} />
+    <Route path="recordings" element={<TeacherRecordings />} />
+    <Route path="sessions" element={<TeacherSessions />} />
+    <Route path="students" element={<TeacherStudents />} />
+    <Route path="my-courses" element={<MyCourses />} />
+    <Route path="schedule" element={<SchedulePage />} />
+    <Route path="messages" element={<MessagesPage />} />
+    <Route path="analytics" element={<Analytics />} />
+    <Route path="profile" element={<Profile />} />
+    <Route path="subscription" element={<SubscriptionPlans />} />
+    <Route path="notifications" element={<NotificationsPage />} />
+    <Route path="help" element={<HelpPage />} />
+    <Route path="" element={<Navigate to="dashboard" replace />} />
+  </Routes>
+)
+
+// ✅ Student Routes (Optimized)
+const StudentRoutes = () => (
+  <Routes>
+    <Route path="dashboard" element={<StudentDashboard />} />
+    <Route path="sessions" element={<StudentSessions />} />
+    <Route path="recordings" element={<StudentRecordings />} />
+    <Route path="courses" element={<StudentCourses />} />
+    <Route path="my-courses" element={<MyCourses />} />
+    <Route path="schedule" element={<SchedulePage />} />
+    <Route path="messages" element={<MessagesPage />} />
+    <Route path="progress" element={<ProgressPage />} />
+    <Route path="profile" element={<Profile />} />
+    <Route path="subscription" element={<SubscriptionPlans />} />
+    <Route path="notifications" element={<NotificationsPage />} />
+    <Route path="help" element={<HelpPage />} />
+    <Route path="" element={<Navigate to="dashboard" replace />} />
+  </Routes>
+)
+
+// ✅ Main Routes (Optimized)
 function AppRoutes() {
   const { userRole } = useAuth()
 
@@ -342,7 +357,9 @@ function AppRoutes() {
         path="/login"
         element={
           <PublicRoute>
-            <Login />
+            <Suspense fallback={<PageLoading message="Loading login..." />}>
+              <Login />
+            </Suspense>
           </PublicRoute>
         }
       />
@@ -350,108 +367,76 @@ function AppRoutes() {
         path="/register"
         element={
           <PublicRoute>
-            <Register />
+            <Suspense fallback={<PageLoading message="Loading registration..." />}>
+              <Register />
+            </Suspense>
           </PublicRoute>
         }
       />
       <Route path="/logout" element={<Logout />} />
 
-      {/* Main dashboard route - Renders the appropriate dashboard based on role */}
+      {/* Main dashboard route */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <RoleBasedDashboard />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* Admin routes with unified Layout */}
+      {/* Admin routes */}
       <Route
         path="/admin/*"
         element={
           <ProtectedRoute requiredRole="admin">
-            <Layout role="admin">
-              <Routes>
-                <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="users" element={<UserManagement />} />
-                <Route path="courses" element={<CourseManagement />} />
-                <Route path="sessions" element={<SessionManagement />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="subscription" element={<SubscriptionPlans />} />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="help" element={<HelpPage />} />
-                <Route path="" element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            </Layout>
+            <RouteLayout role="admin">
+              <Suspense fallback={<PageLoading message="Loading admin section..." />}>
+                <AdminRoutes />
+              </Suspense>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* Teacher routes with unified Layout */}
+      {/* Teacher routes */}
       <Route
         path="/teacher/*"
         element={
           <ProtectedRoute requiredRole="teacher">
-            <Layout role="teacher">
-              <Routes>
-                <Route path="dashboard" element={<TeacherDashboard />} />
-                <Route path="recordings" element={<TeacherRecordings />} />
-                <Route path="sessions" element={<TeacherSessions />} />
-                <Route path="students" element={<TeacherStudents />} />
-                <Route path="my-courses" element={<MyCourses />} />
-                <Route path="schedule" element={<SchedulePage />} />
-                <Route path="messages" element={<MessagesPage />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="subscription" element={<SubscriptionPlans />} />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="help" element={<HelpPage />} />
-                <Route path="" element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            </Layout>
+            <RouteLayout role="teacher">
+              <Suspense fallback={<PageLoading message="Loading teacher section..." />}>
+                <TeacherRoutes />
+              </Suspense>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* Student routes with unified Layout */}
+      {/* Student routes */}
       <Route
         path="/student/*"
         element={
           <ProtectedRoute requiredRole="student">
-            <Layout role="student">
-              <Routes>
-                <Route path="dashboard" element={<StudentDashboard />} />
-                <Route path="sessions" element={<StudentSessions />} />
-                <Route path="recordings" element={<StudentRecordings />} />
-                <Route path="courses" element={<StudentCourses />} />
-                <Route path="my-courses" element={<MyCourses />} />
-                <Route path="schedule" element={<SchedulePage />} />
-                <Route path="messages" element={<MessagesPage />} />
-                <Route path="progress" element={<ProgressPage />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="subscription" element={<SubscriptionPlans />} />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="help" element={<HelpPage />} />
-                <Route path="" element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            </Layout>
+            <RouteLayout role="student">
+              <Suspense fallback={<PageLoading message="Loading student section..." />}>
+                <StudentRoutes />
+              </Suspense>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* Common routes - These will use the appropriate layout based on user role */}
+      {/* Common routes */}
       <Route
         path="/recording/:id"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <RecordingDetail />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -459,9 +444,9 @@ function AppRoutes() {
         path="/profile"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <Profile />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -469,9 +454,9 @@ function AppRoutes() {
         path="/subscription"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <SubscriptionPlans />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -479,9 +464,9 @@ function AppRoutes() {
         path="/notifications"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <NotificationsPage />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -489,9 +474,9 @@ function AppRoutes() {
         path="/help"
         element={
           <ProtectedRoute>
-            <Layout role={userRole}>
+            <RouteLayout role={userRole}>
               <HelpPage />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -499,9 +484,9 @@ function AppRoutes() {
         path="/courses"
         element={
           <ProtectedRoute requiredRole="student">
-            <Layout role="student">
+            <RouteLayout role="student">
               <BrowseCourses />
-            </Layout>
+            </RouteLayout>
           </ProtectedRoute>
         }
       />
@@ -509,7 +494,7 @@ function AppRoutes() {
       {/* Error routes */}
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-      {/* Default routes - Redirect to appropriate dashboard based on role */}
+      {/* Default routes */}
       <Route path="/" element={<NavigateToDashboard />} />
       <Route path="*" element={<NavigateToDashboard />} />
     </Routes>
@@ -521,11 +506,7 @@ const NavigateToDashboard = () => {
   const { user, userRole, loading } = useAuth()
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
+    return <PageLoading />
   }
 
   if (!user) {
@@ -533,16 +514,14 @@ const NavigateToDashboard = () => {
   }
 
   // Redirect to appropriate dashboard based on role
-  switch (userRole) {
-    case 'admin':
-      return <Navigate to="/admin/dashboard" replace />
-    case 'teacher':
-      return <Navigate to="/teacher/dashboard" replace />
-    case 'student':
-      return <Navigate to="/student/dashboard" replace />
-    default:
-      return <Navigate to="/login" replace />
+  const dashboardPaths = {
+    admin: '/admin/dashboard',
+    teacher: '/teacher/dashboard', 
+    student: '/student/dashboard'
   }
+
+  const dashboardPath = dashboardPaths[userRole]
+  return dashboardPath ? <Navigate to={dashboardPath} replace /> : <Navigate to="/login" replace />
 }
 
 // ✅ App Wrapper
@@ -550,7 +529,9 @@ function App() {
   return (
     <AuthProvider>
       <div className="App">
-        <AppRoutes />
+        <Suspense fallback={<PageLoading message="Loading application..." />}>
+          <AppRoutes />
+        </Suspense>
       </div>
     </AuthProvider>
   )

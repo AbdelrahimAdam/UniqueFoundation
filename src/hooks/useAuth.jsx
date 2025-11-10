@@ -26,6 +26,7 @@ export function AuthProvider({ children }) {
   // Prevent multiple instances
   const isMountedRef = useRef(false)
   const unsubscribeRef = useRef(null)
+  const isRegisteringRef = useRef(false) // NEW: Track if we're in registration process
 
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
@@ -61,6 +62,12 @@ export function AuthProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('🔄 Auth state changed:', firebaseUser?.uid || 'null')
+      
+      // NEW: Skip auth state processing if we're in the middle of registration
+      if (isRegisteringRef.current) {
+        console.log('⏸️  Skipping auth state change during registration')
+        return
+      }
 
       if (firebaseUser) {
         setUser(firebaseUser)
@@ -150,6 +157,7 @@ export function AuthProvider({ children }) {
   const register = async (email, password, userData) => {
     try {
       setAuthLoading(true)
+      isRegisteringRef.current = true // NEW: Set flag to prevent auto-redirect
       console.log('🔄 Starting registration process...', { email, role: userData.role })
       
       // Create user in Firebase Auth
@@ -234,6 +242,7 @@ export function AuthProvider({ children }) {
       }
     } finally {
       setAuthLoading(false)
+      isRegisteringRef.current = false // NEW: Reset flag
     }
   }
 

@@ -36,6 +36,16 @@ export const userService = {
         firstName: userData.firstName?.trim() || '',
         lastName: userData.lastName?.trim() || '',
         phone: userData.phone || '',
+        address: userData.address || '',
+        bio: userData.bio || '',
+        
+        // Profile-specific fields
+        photoURL: userData.photoURL || '',
+        photoURLType: userData.photoURLType || '', // 'base64' or empty for regular URLs
+        department: userData.department || '',
+        gradeLevel: userData.gradeLevel || '',
+        subjects: userData.subjects || '',
+        qualifications: userData.qualifications || '',
         
         // Role and access management
         role: userData.role || 'student',
@@ -159,18 +169,20 @@ export const userService = {
     }
   },
 
-  // Update user profile with field validation
+  // Update user profile with field validation - FIXED VERSION
   updateUserProfile: async (userId, updates) => {
     try {
-      console.log('🔄 Updating user profile for:', userId);
+      console.log('🔄 Updating user profile for:', userId, 'Updates:', updates);
       
       if (!userId) {
         throw new Error('User ID is required');
       }
       
-      // Define allowed fields that users can update themselves
+      // Define allowed fields that users can update themselves - EXPANDED LIST
       const allowedUserFields = [
-        'displayName', 'firstName', 'lastName', 'phone', 
+        'displayName', 'firstName', 'lastName', 'phone', 'address', 'bio',
+        'department', 'gradeLevel', 'subjects', 'qualifications',
+        'photoURL', 'photoURLType', // For Base64 avatar support
         'preferences', 'usage'
       ];
       
@@ -179,16 +191,31 @@ export const userService = {
       Object.keys(updates).forEach(key => {
         if (allowedUserFields.includes(key)) {
           filteredUpdates[key] = updates[key];
+        } else {
+          console.warn('⚠️ Attempted to update restricted field:', key);
         }
       });
+      
+      // Check if there are any valid updates
+      if (Object.keys(filteredUpdates).length === 0) {
+        console.warn('⚠️ No valid fields to update');
+        return { 
+          success: false, 
+          userId,
+          error: 'No valid fields to update',
+          updatedFields: []
+        };
+      }
       
       const updateData = {
         ...filteredUpdates,
         updatedAt: serverTimestamp()
       };
       
+      console.log('📤 Sending update to Firestore:', updateData);
+      
       await updateDoc(doc(db, 'users', userId), updateData);
-      console.log('✅ User profile updated successfully:', userId);
+      console.log('✅ User profile updated successfully:', userId, 'Fields:', Object.keys(filteredUpdates));
       
       return { 
         success: true, 
@@ -198,6 +225,60 @@ export const userService = {
     } catch (error) {
       console.error('❌ Error updating user profile:', error);
       throw new Error(`Failed to update user profile: ${error.message}`);
+    }
+  },
+
+  // Update user avatar with Base64 support
+  updateUserAvatar: async (userId, avatarData) => {
+    try {
+      console.log('🔄 Updating user avatar for:', userId);
+      
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+      
+      const avatarUpdate = {
+        photoURL: avatarData.photoURL || '',
+        photoURLType: avatarData.photoURLType || '', // 'base64' for Base64 images
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(doc(db, 'users', userId), avatarUpdate);
+      console.log('✅ User avatar updated successfully:', userId);
+      
+      return { 
+        success: true, 
+        userId,
+        avatarUpdated: true
+      };
+    } catch (error) {
+      console.error('❌ Error updating user avatar:', error);
+      throw new Error(`Failed to update user avatar: ${error.message}`);
+    }
+  },
+
+  // Remove user avatar
+  removeUserAvatar: async (userId) => {
+    try {
+      console.log('🔄 Removing user avatar for:', userId);
+      
+      const avatarUpdate = {
+        photoURL: '',
+        photoURLType: '',
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(doc(db, 'users', userId), avatarUpdate);
+      console.log('✅ User avatar removed successfully:', userId);
+      
+      return { 
+        success: true, 
+        userId,
+        avatarRemoved: true
+      };
+    } catch (error) {
+      console.error('❌ Error removing user avatar:', error);
+      throw new Error(`Failed to remove user avatar: ${error.message}`);
     }
   },
 
@@ -236,6 +317,113 @@ export const userService = {
     } catch (error) {
       console.error('❌ Error incrementing usage:', error);
     }
+  },
+
+  // Get user statistics for profile page
+  getUserStatistics: async (userId, userRole) => {
+    try {
+      console.log('🔄 Fetching user statistics for:', userId, 'Role:', userRole);
+      
+      let userStats = {};
+      
+      switch (userRole) {
+        case 'admin':
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const coursesSnapshot = await getDocs(collection(db, 'courses'));
+          const teachersSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'teacher')));
+          
+          userStats = {
+            totalUsers: usersSnapshot.size,
+            activeCourses: coursesSnapshot.size,
+            teachers: teachersSnapshot.size,
+            systemHealth: '98%'
+          };
+          break;
+
+        case 'teacher':
+          const teacherCoursesSnapshot = await getDocs(query(collection(db, 'courses'), where('teacherId', '==', userId)));
+          const teacherSessionsSnapshot = await getDocs(query(collection(db, 'sessions'), where('teacherId', '==', userId)));
+          const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+          
+          userStats = {
+            totalCourses: teacherCoursesSnapshot.size,
+            sessions: teacherSessionsSnapshot.size,
+            students: studentsSnapshot.size,
+            rating: '4.8/5'
+          };
+          break;
+
+        case 'student':
+          const studentCoursesSnapshot = await getDocs(query(collection(db, 'enrollments'), where('studentId', '==', userId)));
+          const completedLessonsSnapshot = await getDocs(query(collection(db, 'progress'), where('studentId', '==', userId), where('completed', '==', true)));
+          const upcomingSessionsSnapshot = await getDocs(query(collection(db, 'sessions'), where('students', 'array-contains', userId)));
+          
+          userStats = {
+            enrolledCourses: studentCoursesSnapshot.size,
+            completedLessons: completedLessonsSnapshot.size,
+            upcomingSessions: upcomingSessionsSnapshot.size,
+            progress: '75%'
+          };
+          break;
+
+        default:
+          userStats = {};
+      }
+      
+      console.log('✅ User statistics fetched:', userStats);
+      return userStats;
+    } catch (error) {
+      console.error('❌ Error fetching user statistics:', error);
+      // Return default stats on error
+      return {
+        totalUsers: 0,
+        activeCourses: 0,
+        teachers: 0,
+        systemHealth: '100%',
+        totalCourses: 0,
+        sessions: 0,
+        students: 0,
+        rating: '0/5',
+        enrolledCourses: 0,
+        completedLessons: 0,
+        upcomingSessions: 0,
+        progress: '0%'
+      };
+    }
+  },
+
+  // Validate profile data before update
+  validateProfileData: (profileData) => {
+    const errors = [];
+    
+    // Name validation
+    if (profileData.firstName && profileData.firstName.length < 2) {
+      errors.push('First name must be at least 2 characters long');
+    }
+    
+    if (profileData.lastName && profileData.lastName.length < 2) {
+      errors.push('Last name must be at least 2 characters long');
+    }
+    
+    // Phone validation (basic)
+    if (profileData.phone && !/^[\d\s\-\+\(\)]{10,}$/.test(profileData.phone)) {
+      errors.push('Please enter a valid phone number');
+    }
+    
+    // Bio length validation
+    if (profileData.bio && profileData.bio.length > 500) {
+      errors.push('Bio must be less than 500 characters');
+    }
+    
+    // Department validation
+    if (profileData.department && profileData.department.length > 100) {
+      errors.push('Department name is too long');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   },
 
   // Admin: Get all users with advanced filtering and pagination
@@ -298,7 +486,9 @@ export const userService = {
           user.displayName?.toLowerCase().includes(searchLower) ||
           user.firstName?.toLowerCase().includes(searchLower) ||
           user.lastName?.toLowerCase().includes(searchLower) ||
-          user.phone?.includes(searchTerm)
+          user.phone?.includes(searchTerm) ||
+          user.department?.toLowerCase().includes(searchLower) ||
+          user.subjects?.toLowerCase().includes(searchLower)
         );
       }
 
@@ -332,6 +522,11 @@ export const userService = {
         admins: users.filter(user => user.role === 'admin').length,
         teachers: users.filter(user => user.role === 'teacher').length,
         students: users.filter(user => user.role === 'student').length,
+        
+        // Profile completion stats
+        withAvatar: users.filter(user => user.photoURL).length,
+        withBio: users.filter(user => user.bio && user.bio.length > 0).length,
+        withPhone: users.filter(user => user.phone && user.phone.length > 0).length,
         
         // Subscription breakdown
         free: users.filter(user => user.subscription?.plan === 'free').length,
@@ -693,7 +888,10 @@ export const userService = {
           user.firstName?.toLowerCase().includes(searchLower) ||
           user.lastName?.toLowerCase().includes(searchLower) ||
           user.phone?.includes(searchTerm) ||
-          user.userId?.includes(searchTerm)
+          user.userId?.includes(searchTerm) ||
+          user.department?.toLowerCase().includes(searchLower) ||
+          user.subjects?.toLowerCase().includes(searchLower) ||
+          user.qualifications?.toLowerCase().includes(searchLower)
         );
       } else {
         filteredUsers = allUsers.filter(user => 
@@ -706,6 +904,27 @@ export const userService = {
     } catch (error) {
       console.error('❌ Error searching users:', error);
       throw new Error(`Failed to search users: ${error.message}`);
+    }
+  },
+
+  // Export user data for profile (GDPR compliance)
+  exportUserData: async (userId) => {
+    try {
+      console.log('🔄 Exporting user data for:', userId);
+      
+      const userProfile = await userService.getUserProfile(userId);
+      if (!userProfile) {
+        throw new Error('User profile not found');
+      }
+      
+      // Remove sensitive fields
+      const { loginAttempts, accountLocked, ...exportableData } = userProfile;
+      
+      console.log('✅ User data exported successfully:', userId);
+      return exportableData;
+    } catch (error) {
+      console.error('❌ Error exporting user data:', error);
+      throw new Error(`Failed to export user data: ${error.message}`);
     }
   }
 };

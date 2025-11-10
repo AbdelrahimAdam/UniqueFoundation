@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Users,
@@ -15,22 +15,25 @@ import {
   RefreshCw,
   AlertCircle,
   Database,
-  Mail,
   Calendar,
   FileText,
   Download,
   Upload,
-  Shield,
   Activity,
   Link,
   Globe,
   User
 } from 'lucide-react'
 import Button from '../../components/UI/Button.jsx'
+import LoadingSpinner from '../../components/UI/LoadingSpinner.jsx'
+
+// Lazy load heavy components
+const CreateSessionModal = lazy(() => import('../../components/Session/CreateSessionModal.jsx'))
+
+// Services
 import userService from "../../services/userService.jsx"
 import sessionService from "../../services/sessionService.jsx"
 import { recordingService } from '../../services/recordingService.jsx'
-import CreateSessionModal from '../../components/Session/CreateSessionModal.jsx'
 import {
   collection,
   query,
@@ -43,6 +46,9 @@ import {
   Timestamp
 } from 'firebase/firestore'
 import { db } from '../../config/firebase.jsx'
+
+// Constants
+const TABS = ['dashboard', 'users', 'courses', 'sessions', 'analytics']
 
 const AdminDashboard = () => {
   const { t } = useTranslation()
@@ -73,212 +79,126 @@ const AdminDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('all')
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false)
 
-  useEffect(() => {
-    loadAllData()
-    const unsubscribe = setupRealtimeListeners()
-    return () => unsubscribe()
-  }, [])
+  // Helper functions - moved outside to prevent recreation
+  const formatTimeAgo = (date) => {
+    if (!date) return 'Never'
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - new Date(date)) / 1000)
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
+    return new Date(date).toLocaleDateString()
+  }
 
-  const loadAllData = async () => {
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B'
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0:00'
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Optimized data loading with error boundaries
+  const loadAllData = useCallback(async () => {
     try {
       setLoading(true)
       setStatsLoading(true)
       setError(null)
       setIndexError(null)
      
-      await Promise.all([
-        loadUsers(),
-        loadCourses(),
-        loadRecordings(),
-        loadSessions(),
-        loadStats(),
-        loadRecentActivities()
-      ])
+      // Load data in sequence to avoid overwhelming the database
+      await loadUsers()
+      await loadCourses()
+      await loadRecordingsAndSessions()
+      await loadStats()
+      await loadRecentActivities()
     } catch (error) {
       console.error('Error loading data:', error)
       if (error.message?.includes('index') || error.code === 'failed-precondition') {
         setIndexError('Some advanced features require Firestore indexes. Basic data is loaded.')
-        await loadBasicData()
       } else {
         setError('Failed to load dashboard data. Please try refreshing the page.')
-        await loadBasicData()
       }
     } finally {
       setLoading(false)
       setStatsLoading(false)
     }
-  }
+  }, [])
 
-  const loadBasicData = async () => {
+  // Combined recordings and sessions loading
+  const loadRecordingsAndSessions = useCallback(async () => {
     try {
-      const [usersData, coursesData, recordingsData, sessionsData] = await Promise.all([
-        userService.getAllUsers().catch(() => []),
-        loadCoursesBasic(),
-        loadRecordingsBasic(),
-        loadSessionsBasic()
+      // FIX: Ensure recordings are properly published and available to students
+      const [recordingsSnapshot, sessionsSnapshot] = await Promise.all([
+        getDocs(query(
+          collection(db, 'recordings'),
+          where('isPublished', '==', true), // CRITICAL: Only get published recordings
+          where('status', '==', 'completed'), // CRITICAL: Only completed recordings
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        )),
+        getDocs(query(
+          collection(db, 'sessions'),
+          where('status', 'in', ['scheduled', 'live']),
+          orderBy('scheduledTime', 'desc'),
+          limit(50)
+        ))
       ])
-     
-      setUsers(usersData)
-      setCourses(coursesData)
+
+      const recordingsData = recordingsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.(),
+        duration: doc.data().duration || 0,
+        fileSize: doc.data().fileSize || 0
+      }))
+
+      const sessionsData = sessionsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        scheduledTime: doc.data().scheduledTime?.toDate?.(),
+        sessionEndTime: doc.data().sessionEndTime?.toDate?.(),
+        createdAt: doc.data().createdAt?.toDate?.(),
+        updatedAt: doc.data().updatedAt?.toDate?.()
+      }))
+
       setRecordings(recordingsData)
       setSessions(sessionsData)
-     
-      const totalUsers = usersData.length
-      const pendingUsers = usersData.filter(user => !user.isActive).length
-      const totalCourses = coursesData.length
-      const totalRecordings = recordingsData.length
-      const activeSessions = sessionsData.filter(s => s.status === 'live').length
-      const storageUsed = recordingsData.reduce((acc, r) => acc + (r.fileSize || 0), 0)
-      const totalDuration = recordingsData.reduce((acc, r) => acc + (r.duration || 0), 0)
-      const meetSessions = sessionsData.filter(s => s.meetLink).length
-      const recordedSessions = sessionsData.filter(s => s.isRecorded).length
-      const upcomingSessions = sessionsData.filter(s => s.status === 'scheduled').length
-     
-      setStats({
-        totalUsers,
-        activeSessions,
-        totalCourses,
-        totalRecordings,
-        pendingUsers,
-        storageUsed,
-        totalDuration,
-        meetSessions,
-        recordedSessions,
-        upcomingSessions
-      })
-      const activities = await generateActivitiesFromData(usersData, coursesData, recordingsData, sessionsData)
-      setRecentActivities(activities)
     } catch (error) {
-      console.error('Error loading basic data:', error)
+      console.error('Error loading recordings and sessions:', error)
+      // Fallback to basic query without complex filters
+      const [recordingsSnapshot, sessionsSnapshot] = await Promise.all([
+        getDocs(query(collection(db, 'recordings'), limit(50))),
+        getDocs(query(collection(db, 'sessions'), limit(50)))
+      ])
+      
+      setRecordings(recordingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      setSessions(sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     }
-  }
+  }, [])
 
-  const setupRealtimeListeners = () => {
-    const unsubscribers = []
-    try {
-      const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(50))
-      const unsubscribeUsers = onSnapshot(usersQuery,
-        (snapshot) => {
-          const usersData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.(),
-            lastLogin: doc.data().lastLogin?.toDate?.(),
-            approvedAt: doc.data().approvedAt?.toDate?.()
-          }))
-          setUsers(usersData)
-         
-          setStats(prev => ({
-            ...prev,
-            totalUsers: usersData.length,
-            pendingUsers: usersData.filter(user => !user.isActive && user.approvalStatus === 'pending').length
-          }))
-        },
-        (error) => {
-          console.error('Error in users listener:', error)
-        }
-      )
-      unsubscribers.push(unsubscribeUsers)
-    } catch (error) {
-      console.error('Error setting up users listener:', error)
-    }
-    try {
-      const meetSessionsQuery = query(
-        collection(db, 'recordings'),
-        where('status', 'in', ['scheduled', 'live']),
-        orderBy('scheduledTime', 'desc'),
-        limit(20)
-      )
-     
-      const unsubscribeMeetSessions = onSnapshot(meetSessionsQuery,
-        (snapshot) => {
-          const meetSessionsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            scheduledTime: doc.data().scheduledTime?.toDate?.(),
-            sessionEndTime: doc.data().sessionEndTime?.toDate?.(),
-            createdAt: doc.data().createdAt?.toDate?.(),
-            updatedAt: doc.data().updatedAt?.toDate?.()
-          }))
-         
-          const now = new Date()
-          const activeMeetSessions = meetSessionsData.filter(session => {
-            const scheduledTime = session.scheduledTime
-            const sessionEndTime = session.sessionEndTime
-            return scheduledTime && sessionEndTime &&
-                   now >= scheduledTime && now <= sessionEndTime &&
-                   session.status === 'live'
-          }).length
-         
-          setStats(prev => ({
-            ...prev,
-            activeSessions: activeMeetSessions,
-            meetSessions: meetSessionsData.length,
-            upcomingSessions: meetSessionsData.filter(s => s.status === 'scheduled').length
-          }))
-        },
-        (error) => {
-          console.error('Error in Meet sessions listener:', error)
-        }
-      )
-      unsubscribers.push(unsubscribeMeetSessions)
-    } catch (error) {
-      console.error('Error setting up Meet sessions listener:', error)
-    }
-    try {
-      const recordingsQuery = query(
-        collection(db, 'recordings'),
-        where('recordingStatus', '==', 'available'),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      )
-     
-      const unsubscribeRecordings = onSnapshot(recordingsQuery,
-        (snapshot) => {
-          const recordingsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.(),
-            duration: doc.data().duration || 0,
-            fileSize: doc.data().fileSize || 0
-          }))
-          setRecordings(recordingsData)
-         
-          const storageUsed = recordingsData.reduce((acc, r) => acc + (r.fileSize || 0), 0)
-          const totalDuration = recordingsData.reduce((acc, r) => acc + (r.duration || 0), 0)
-         
-          setStats(prev => ({
-            ...prev,
-            totalRecordings: recordingsData.length,
-            recordedSessions: recordingsData.filter(r => r.recordingStatus === 'available').length,
-            storageUsed,
-            totalDuration
-          }))
-        },
-        (error) => {
-          console.error('Error in recordings listener:', error)
-        }
-      )
-      unsubscribers.push(unsubscribeRecordings)
-    } catch (error) {
-      console.error('Error setting up recordings listener:', error)
-    }
-    return () => {
-      unsubscribers.forEach(unsubscribe => unsubscribe())
-    }
-  }
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const usersData = await userService.getAllUsers()
       setUsers(usersData)
     } catch (error) {
       console.error('Error loading users:', error)
-      throw error
+      setUsers([])
     }
-  }
+  }, [])
 
-  const loadCourses = async () => {
+  const loadCourses = useCallback(async () => {
     try {
       const coursesQuery = query(collection(db, 'courses'), orderBy('createdAt', 'desc'), limit(50))
       const snapshot = await getDocs(coursesQuery)
@@ -291,227 +211,95 @@ const AdminDashboard = () => {
       setCourses(coursesData)
     } catch (error) {
       console.error('Error loading courses:', error)
-      throw error
+      setCourses([])
     }
-  }
+  }, [])
 
-  const loadCoursesBasic = async () => {
-    try {
-      const coursesQuery = query(collection(db, 'courses'), limit(50))
-      const snapshot = await getDocs(coursesQuery)
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        updatedAt: doc.data().updatedAt?.toDate?.()
-      }))
-    } catch (error) {
-      console.error('Error loading basic courses:', error)
-      return []
-    }
-  }
-
-  const loadRecordings = async () => {
-    try {
-      const [recordingsSnapshot, meetSessionsSnapshot] = await Promise.all([
-        getDocs(query(collection(db, 'recordings'),
-          where('recordingStatus', '==', 'available'),
-          orderBy('createdAt', 'desc'),
-          limit(50)
-        )),
-        getDocs(query(collection(db, 'recordings'),
-          where('status', 'in', ['scheduled', 'live', 'completed']),
-          orderBy('scheduledTime', 'desc'),
-          limit(50)
-        ))
-      ])
-      const recordingsData = recordingsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        duration: doc.data().duration || 0,
-        fileSize: doc.data().fileSize || 0
-      }))
-      const meetSessionsData = meetSessionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        scheduledTime: doc.data().scheduledTime?.toDate?.(),
-        sessionEndTime: doc.data().sessionEndTime?.toDate?.(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        updatedAt: doc.data().updatedAt?.toDate?.()
-      }))
-      setRecordings([...recordingsData, ...meetSessionsData])
-    } catch (error) {
-      console.error('Error loading recordings:', error)
-      throw error
-    }
-  }
-
-  const loadRecordingsBasic = async () => {
-    try {
-      const recordingsQuery = query(collection(db, 'recordings'), limit(50))
-      const snapshot = await getDocs(recordingsQuery)
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        duration: doc.data().duration || 0,
-        fileSize: doc.data().fileSize || 0
-      }))
-    } catch (error) {
-      console.error('Error loading basic recordings:', error)
-      return []
-    }
-  }
-
-  const loadSessions = async () => {
-    try {
-      const meetSessionsQuery = query(
-        collection(db, 'recordings'),
-        where('status', 'in', ['scheduled', 'live', 'completed']),
-        orderBy('scheduledTime', 'desc'),
-        limit(50)
-      )
-     
-      const snapshot = await getDocs(meetSessionsQuery)
-      const sessionsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        scheduledTime: doc.data().scheduledTime?.toDate?.(),
-        sessionEndTime: doc.data().sessionEndTime?.toDate?.(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        updatedAt: doc.data().updatedAt?.toDate?.()
-      }))
-     
-      setSessions(sessionsData)
-    } catch (error) {
-      console.error('Error loading sessions:', error)
-      throw error
-    }
-  }
-
-  const loadSessionsBasic = async () => {
-    try {
-      const sessionsQuery = query(
-        collection(db, 'recordings'),
-        where('status', 'in', ['scheduled', 'live', 'completed']),
-        limit(50)
-      )
-      const snapshot = await getDocs(sessionsQuery)
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        scheduledTime: doc.data().scheduledTime?.toDate?.(),
-        sessionEndTime: doc.data().sessionEndTime?.toDate?.(),
-        createdAt: doc.data().createdAt?.toDate?.(),
-        updatedAt: doc.data().updatedAt?.toDate?.()
-      }))
-    } catch (error) {
-      console.error('Error loading basic sessions:', error)
-      return []
-    }
-  }
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const [
         usersCount,
         coursesCount,
         recordingsCount,
-        pendingUsersCount,
-        meetSessionsCount,
-        availableRecordingsCount
+        pendingUsersCount
       ] = await Promise.all([
         getCountFromServer(collection(db, 'users')),
         getCountFromServer(collection(db, 'courses')),
-        getCountFromServer(collection(db, 'recordings')),
-        getCountFromServer(query(collection(db, 'users'), where('isActive', '==', false))),
-        getCountFromServer(query(collection(db, 'recordings'), where('meetLink', '!=', ''))),
-        getCountFromServer(query(collection(db, 'recordings'), where('recordingStatus', '==', 'available')))
+        getCountFromServer(query(collection(db, 'recordings'), where('isPublished', '==', true))),
+        getCountFromServer(query(collection(db, 'users'), where('isActive', '==', false)))
       ])
+
       const storageUsed = recordings.reduce((acc, r) => acc + (r.fileSize || 0), 0)
       const totalDuration = recordings.reduce((acc, r) => acc + (r.duration || 0), 0)
       const now = new Date()
-      const activeMeetSessions = sessions.filter(session => {
+      
+      const activeSessions = sessions.filter(session => {
         const scheduledTime = session.scheduledTime
         const sessionEndTime = session.sessionEndTime
         return scheduledTime && sessionEndTime &&
                now >= scheduledTime && now <= sessionEndTime &&
                session.status === 'live'
       }).length
+
       setStats({
         totalUsers: usersCount.data().count,
-        activeSessions: activeMeetSessions,
+        activeSessions,
         totalCourses: coursesCount.data().count,
         totalRecordings: recordingsCount.data().count,
         pendingUsers: pendingUsersCount.data().count,
         storageUsed,
         totalDuration,
-        meetSessions: meetSessionsCount.data().count,
-        recordedSessions: availableRecordingsCount.data().count,
+        meetSessions: sessions.filter(s => s.meetLink).length,
+        recordedSessions: recordings.filter(r => r.isPublished).length,
         upcomingSessions: sessions.filter(s => s.status === 'scheduled').length
       })
     } catch (error) {
       console.error('Error loading stats:', error)
+      // Fallback to calculated stats
       const storageUsed = recordings.reduce((acc, r) => acc + (r.fileSize || 0), 0)
       const totalDuration = recordings.reduce((acc, r) => acc + (r.duration || 0), 0)
       const now = new Date()
-      const activeMeetSessions = sessions.filter(session => {
+      
+      const activeSessions = sessions.filter(session => {
         const scheduledTime = session.scheduledTime
         const sessionEndTime = session.sessionEndTime
         return scheduledTime && sessionEndTime &&
                now >= scheduledTime && now <= sessionEndTime &&
                session.status === 'live'
       }).length
-     
+
       setStats({
         totalUsers: users.length,
-        activeSessions: activeMeetSessions,
+        activeSessions,
         totalCourses: courses.length,
         totalRecordings: recordings.length,
         pendingUsers: users.filter(user => !user.isActive).length,
         storageUsed,
         totalDuration,
         meetSessions: sessions.filter(s => s.meetLink).length,
-        recordedSessions: recordings.filter(r => r.recordingStatus === 'available').length,
+        recordedSessions: recordings.filter(r => r.isPublished).length,
         upcomingSessions: sessions.filter(s => s.status === 'scheduled').length
       })
-      throw error
     }
-  }
+  }, [users, courses, recordings, sessions])
 
-  const loadRecentActivities = async () => {
+  const loadRecentActivities = useCallback(async () => {
     try {
-      const activitiesQuery = query(
-        collection(db, 'activities'),
-        orderBy('timestamp', 'desc'),
-        limit(10)
-      )
-      const snapshot = await getDocs(activitiesQuery)
-     
-      if (!snapshot.empty) {
-        const activitiesData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          timestamp: doc.data().timestamp?.toDate()
-        }))
-        setRecentActivities(activitiesData)
-      } else {
-        const activities = await generateActivitiesFromData(users, courses, recordings, sessions)
-        setRecentActivities(activities)
-      }
+      // Generate activities from current data instead of querying activities collection
+      const activities = await generateActivitiesFromData(users, courses, recordings, sessions)
+      setRecentActivities(activities.slice(0, 5))
     } catch (error) {
       console.error('Error loading recent activities:', error)
-      const activities = await generateActivitiesFromData(users, courses, recordings, sessions)
-      setRecentActivities(activities)
+      setRecentActivities([])
     }
-  }
+  }, [users, courses, recordings, sessions])
 
-  const generateActivitiesFromData = async (usersData, coursesData, recordingsData, sessionsData = []) => {
+  const generateActivitiesFromData = useCallback(async (usersData, coursesData, recordingsData, sessionsData = []) => {
     const activities = []
     const now = new Date()
     
-    usersData.slice(0, 5).forEach((user, index) => {
+    // User activities
+    usersData.slice(0, 3).forEach((user, index) => {
       const timeAgo = new Date(now.getTime() - (index + 1) * 2 * 60 * 60 * 1000)
       activities.push({
         id: `user-${user.id}`,
@@ -523,7 +311,8 @@ const AdminDashboard = () => {
       })
     })
     
-    coursesData.slice(0, 3).forEach((course, index) => {
+    // Course activities
+    coursesData.slice(0, 2).forEach((course, index) => {
       const timeAgo = new Date(now.getTime() - (index + 1) * 4 * 60 * 60 * 1000)
       activities.push({
         id: `course-${course.id}`,
@@ -535,21 +324,20 @@ const AdminDashboard = () => {
       })
     })
     
+    // Session activities
     sessionsData.slice(0, 3).forEach((session, index) => {
       const timeAgo = new Date(now.getTime() - (index + 1) * 3 * 60 * 60 * 1000)
-      const sessionType = session.meetLink ? 'meet_session_scheduled' : 'session_scheduled'
       activities.push({
         id: `session-${session.id}`,
-        type: sessionType,
+        type: 'session_scheduled',
         userName: session.instructorName || session.createdBy || 'System',
         sessionName: session.title || session.topic,
         timestamp: session.createdAt || timeAgo,
-        message: session.meetLink
-          ? `Google Meet session "${session.title}" was scheduled`
-          : `Session "${session.title || session.topic}" was scheduled`
+        message: `Session "${session.title || session.topic}" was scheduled`
       })
     })
     
+    // Recording activities
     recordingsData.slice(0, 2).forEach((recording, index) => {
       const timeAgo = new Date(now.getTime() - (index + 1) * 6 * 60 * 60 * 1000)
       activities.push({
@@ -561,77 +349,123 @@ const AdminDashboard = () => {
       })
     })
     
-    return activities
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, 5)
+    return activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }, [])
+
+  // Real-time listeners with cleanup
+  useEffect(() => {
+    const unsubscribe = setupRealtimeListeners()
+    return () => unsubscribe()
+  }, [])
+
+  // Initial data load
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
+
+  const setupRealtimeListeners = () => {
+    const unsubscribers = []
+    
+    try {
+      // Users listener
+      const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(20))
+      const unsubscribeUsers = onSnapshot(usersQuery,
+        (snapshot) => {
+          const usersData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.(),
+            lastLogin: doc.data().lastLogin?.toDate?.(),
+            approvedAt: doc.data().approvedAt?.toDate?.()
+          }))
+          setUsers(usersData)
+        },
+        (error) => console.error('Error in users listener:', error)
+      )
+      unsubscribers.push(unsubscribeUsers)
+    } catch (error) {
+      console.error('Error setting up users listener:', error)
+    }
+
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe())
   }
 
-  const handleApproveUser = async (userId) => {
+  // Action handlers
+  const handleApproveUser = useCallback(async (userId) => {
     try {
       setError(null)
       setActionLoading(prev => ({ ...prev, [userId]: true }))
       await userService.approveUser(userId)
+      await loadUsers() // Refresh users after approval
     } catch (error) {
       console.error('Error approving user:', error)
       setError('Failed to approve user. Please try again.')
     } finally {
       setActionLoading(prev => ({ ...prev, [userId]: false }))
     }
-  }
+  }, [loadUsers])
 
-  const handleDeactivateUser = async (userId) => {
+  const handleDeactivateUser = useCallback(async (userId) => {
     try {
       setError(null)
       setActionLoading(prev => ({ ...prev, [userId]: true }))
       await userService.deactivateUser(userId, 'Deactivated by admin')
+      await loadUsers()
     } catch (error) {
       console.error('Error deactivating user:', error)
       setError('Failed to deactivate user. Please try again.')
     } finally {
       setActionLoading(prev => ({ ...prev, [userId]: false }))
     }
-  }
+  }, [loadUsers])
 
-  const handleReactivateUser = async (userId) => {
+  const handleReactivateUser = useCallback(async (userId) => {
     try {
       setError(null)
       setActionLoading(prev => ({ ...prev, [userId]: true }))
       await userService.reactivateUser(userId)
+      await loadUsers()
     } catch (error) {
       console.error('Error reactivating user:', error)
       setError('Failed to reactivate user. Please try again.')
     } finally {
       setActionLoading(prev => ({ ...prev, [userId]: false }))
     }
-  }
+  }, [loadUsers])
 
-  const handleChangeUserRole = async (userId, newRole) => {
+  const handleChangeUserRole = useCallback(async (userId, newRole) => {
     try {
       setError(null)
       setActionLoading(prev => ({ ...prev, [userId]: true }))
       await userService.changeUserRole(userId, newRole)
+      await loadUsers()
     } catch (error) {
       console.error('Error changing user role:', error)
       setError('Failed to change user role. Please try again.')
     } finally {
       setActionLoading(prev => ({ ...prev, [userId]: false }))
     }
-  }
+  }, [loadUsers])
 
-  const handleAddRecording = async (sessionId) => {
+  // FIXED: Ensure recordings are properly published for students
+  const handleAddRecording = useCallback(async (sessionId) => {
     const recordingUrl = prompt('Enter the Google Drive recording URL:')
     if (recordingUrl) {
       try {
         setError(null)
         setActionLoading(prev => ({ ...prev, [sessionId]: true }))
        
+        // CRITICAL: Set isPublished to true and status to completed
         await recordingService.updateWithDriveRecording(sessionId, {
           recordingUrl: recordingUrl,
           duration: 60,
-          fileSize: 250
+          fileSize: 250,
+          isPublished: true, // This makes it visible to students
+          status: 'completed', // This makes it available
+          recordingStatus: 'available'
         })
        
-        await loadAllData()
+        await loadRecordingsAndSessions()
       } catch (error) {
         console.error('Error adding recording:', error)
         setError('Failed to add recording. Please try again.')
@@ -639,51 +473,11 @@ const AdminDashboard = () => {
         setActionLoading(prev => ({ ...prev, [sessionId]: false }))
       }
     }
-  }
+  }, [loadRecordingsAndSessions])
 
-  const handleCreateMeetSession = async () => {
-    try {
-      setError(null)
-     
-      const title = prompt('Enter session title:')
-      const description = prompt('Enter session description (optional):') || ''
-      const meetLink = prompt('Enter Google Meet link:')
-      const scheduledTime = prompt('Enter scheduled date and time (YYYY-MM-DD HH:MM):')
-     
-      if (!title || !meetLink || !scheduledTime) {
-        setError('All fields are required to create a session.')
-        return
-      }
-      const scheduledDate = new Date(scheduledTime)
-      if (isNaN(scheduledDate.getTime())) {
-        setError('Invalid date format. Please use YYYY-MM-DD HH:MM format.')
-        return
-      }
-      
-      await recordingService.createRecordingFromMeetSession({
-        title,
-        description,
-        meetLink,
-        scheduledTime: scheduledDate,
-        sessionEndTime: new Date(scheduledDate.getTime() + 60 * 60 * 1000),
-        instructorId: 'admin',
-        instructorEmail: 'admin@system.com',
-        instructorName: 'System Admin',
-        status: 'scheduled',
-        recordingStatus: 'not_started'
-      })
-      
-      await loadAllData()
-      setError(null)
-    } catch (error) {
-      console.error('Error creating Meet session:', error)
-      setError('Failed to create Google Meet session. Please try again.')
-    }
-  }
-
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     loadAllData()
-  }
+  }, [loadAllData])
 
   const handleCreateIndex = () => {
     window.open('https://console.firebase.google.com/project/_/firestore/indexes', '_blank')
@@ -703,7 +497,6 @@ const AdminDashboard = () => {
         'Meet Link': session.meetLink || 'N/A',
         'Scheduled Time': session.scheduledTime?.toLocaleString(),
         Status: session.status,
-        'Recording Status': session.recordingStatus || 'N/A',
         Instructor: session.instructorName || 'Unknown'
       })),
       recordings: recordings.map(recording => ({
@@ -711,121 +504,93 @@ const AdminDashboard = () => {
         'Drive Link': recording.recordingUrl || 'N/A',
         Duration: `${recording.duration || 0} minutes`,
         'File Size': `${recording.fileSize || 0} MB`,
-        Status: recording.recordingStatus || 'unknown'
+        Status: recording.isPublished ? 'Published' : 'Unpublished'
       }))
     }
+    
     const csvContent = Object.entries(data).map(([type, items]) => {
       const headers = Object.keys(items[0] || {}).join(',')
       const rows = items.map(item => Object.values(item).join(','))
       return [`${type.toUpperCase()}\n${headers}\n${rows.join('\n')}`].join('\n')
     }).join('\n\n')
+    
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `meet-recorder-export-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `admin-export-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
-  const formatTimeAgo = (date) => {
-    if (!date) return 'Never'
-   
-    const now = new Date()
-    const diffInSeconds = Math.floor((now - new Date(date)) / 1000)
-   
-    if (diffInSeconds < 60) return 'Just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
-   
-    return new Date(date).toLocaleDateString()
-  }
+  // Memoized computed values
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch =
+        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+     
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && user.isActive) ||
+        (filterStatus === 'pending' && !user.isActive && user.approvalStatus === 'pending') ||
+        (filterStatus === 'inactive' && user.approvalStatus === 'deactivated')
+     
+      return matchesSearch && matchesStatus
+    })
+  }, [users, searchTerm, filterStatus])
 
-  const formatFileSize = (bytes) => {
-    if (!bytes) return '0 B'
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
-  }
-
-  const formatDuration = (seconds) => {
-    if (!seconds) return '0:00'
-    const hours = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = Math.floor(seconds % 60)
-   
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch =
-      user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-   
-    const matchesStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' && user.isActive) ||
-      (filterStatus === 'pending' && !user.isActive && user.approvalStatus === 'pending') ||
-      (filterStatus === 'inactive' && user.approvalStatus === 'deactivated')
-   
-    return matchesSearch && matchesStatus
-  })
-
-  const statCards = [
+  const statCards = useMemo(() => [
     {
-      name: t('admin.stats.totalUsers', 'Total Users'),
+      name: 'Total Users',
       value: stats.totalUsers.toLocaleString(),
       icon: Users,
       change: `${stats.pendingUsers} pending`,
       changeType: stats.pendingUsers > 0 ? 'warning' : 'positive',
       color: 'from-purple-500 to-violet-600',
-      bgColor: 'bg-gradient-to-br from-purple-500/10 to-violet-600/10',
+      bgColor: 'from-purple-500/10 to-violet-600/10',
       description: 'Total registered users',
       loading: statsLoading
     },
     {
-      name: t('admin.stats.activeSessions', 'Active Sessions'),
+      name: 'Active Sessions',
       value: stats.activeSessions.toString(),
       icon: Video,
-      change: `${stats.meetSessions} total Meet sessions`,
+      change: `${stats.meetSessions} total sessions`,
       changeType: stats.activeSessions > 0 ? 'positive' : 'neutral',
       color: 'from-green-500 to-emerald-600',
-      bgColor: 'bg-gradient-to-br from-green-500/10 to-emerald-600/10',
-      description: 'Live Google Meet sessions',
+      bgColor: 'from-green-500/10 to-emerald-600/10',
+      description: 'Live sessions',
       loading: statsLoading
     },
     {
-      name: t('admin.stats.totalCourses', 'Total Courses'),
+      name: 'Total Courses',
       value: stats.totalCourses.toString(),
       icon: BookOpen,
       change: `${courses.filter(c => c.isPublished).length} published`,
       changeType: 'neutral',
       color: 'from-blue-500 to-cyan-600',
-      bgColor: 'bg-gradient-to-br from-blue-500/10 to-cyan-600/10',
+      bgColor: 'from-blue-500/10 to-cyan-600/10',
       description: 'Available courses',
       loading: statsLoading
     },
     {
-      name: t('admin.stats.totalRecordings', 'Available Recordings'),
+      name: 'Available Recordings',
       value: stats.recordedSessions.toString(),
       icon: BarChart3,
       change: `${stats.upcomingSessions} upcoming sessions`,
       changeType: 'neutral',
       color: 'from-orange-500 to-red-600',
-      bgColor: 'bg-gradient-to-br from-orange-500/10 to-red-600/10',
-      description: 'Google Drive recordings',
+      bgColor: 'from-orange-500/10 to-red-600/10',
+      description: 'Published recordings',
       loading: statsLoading
     }
-  ]
+  ], [stats, courses, statsLoading])
 
   const quickActions = useMemo(() => [
     {
-      title: t('admin.actions.manageUsers', 'Manage Users'),
+      title: 'Manage Users',
       description: 'View and manage all user accounts',
       icon: Users,
       color: 'text-purple-600 dark:text-purple-400',
@@ -833,62 +598,40 @@ const AdminDashboard = () => {
       action: () => setActiveTab('users')
     },
     {
-      title: t('admin.actions.createMeetSession', 'Create Meet Session'),
-      description: 'Schedule new Google Meet session',
+      title: 'Create Session',
+      description: 'Schedule new teaching session',
       icon: Video,
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-500/10 dark:bg-green-500/20',
       action: () => setShowCreateSessionModal(true)
     },
     {
-      title: t('admin.actions.scheduleSession', 'View Sessions'),
-      description: 'Manage Google Meet sessions',
+      title: 'View Sessions',
+      description: 'Manage scheduled sessions',
       icon: Clock,
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-500/10 dark:bg-blue-500/20',
       action: () => setActiveTab('sessions')
     }
-  ], [t])
+  ], [])
 
   const getActivityIcon = (type) => {
     switch (type) {
-      case 'course_created':
-      case 'course_updated':
-        return BookOpen
-      case 'user_joined':
-      case 'user_approved':
-        return Users
-      case 'recording_created':
-      case 'recording_processed':
-        return Video
-      case 'session_scheduled':
-      case 'meet_session_scheduled':
-        return Clock
-      case 'meet_session_started':
-        return Globe
-      default:
-        return Zap
+      case 'course_created': return BookOpen
+      case 'user_joined': return Users
+      case 'recording_created': return Video
+      case 'session_scheduled': return Clock
+      default: return Zap
     }
   }
 
   const getActivityColor = (type) => {
     switch (type) {
-      case 'course_created':
-      case 'course_updated':
-        return 'text-purple-600 dark:text-purple-400'
-      case 'user_joined':
-      case 'user_approved':
-        return 'text-blue-600 dark:text-blue-400'
-      case 'recording_created':
-      case 'recording_processed':
-        return 'text-green-600 dark:text-green-400'
-      case 'session_scheduled':
-      case 'meet_session_scheduled':
-        return 'text-orange-600 dark:text-orange-400'
-      case 'meet_session_started':
-        return 'text-red-600 dark:text-red-400'
-      default:
-        return 'text-gray-600 dark:text-gray-400'
+      case 'course_created': return 'text-purple-600 dark:text-purple-400'
+      case 'user_joined': return 'text-blue-600 dark:text-blue-400'
+      case 'recording_created': return 'text-green-600 dark:text-green-400'
+      case 'session_scheduled': return 'text-orange-600 dark:text-orange-400'
+      default: return 'text-gray-600 dark:text-gray-400'
     }
   }
 
@@ -896,19 +639,20 @@ const AdminDashboard = () => {
     return activity.message || `${activity.userName} ${activity.type.replace('_', ' ')}`
   }
 
-  const handleSessionCreated = (session) => {
+  const handleSessionCreated = useCallback((session) => {
     loadAllData()
-    console.log('New session created:', session)
-  }
+  }, [loadAllData])
 
+  // Tab content rendering - FIXED: Removed duplicate function declaration
   const renderTabContent = () => {
     if (loading && activeTab === 'dashboard') {
       return (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin-slow rounded-full h-8 w-8 border-4 border-purple-200 border-t-purple-600"></div>
+          <LoadingSpinner size="lg" />
         </div>
       )
     }
+    
     switch (activeTab) {
       case 'dashboard':
         return (
@@ -945,6 +689,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+            
             {/* Error Alert */}
             {error && (
               <div className="glass-light dark:glass-dark backdrop-blur-xl rounded-3xl border border-red-200/50 dark:border-red-800/50 p-6 shadow-depth-4">
@@ -960,6 +705,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+            
             {/* Stats Grid */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {statCards.map((stat, index) => {
@@ -970,7 +716,7 @@ const AdminDashboard = () => {
                     className="group relative overflow-hidden glass-light dark:glass-dark backdrop-blur-xl rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-depth-4 hover:shadow-depth-5 transition-all duration-500 hover:scale-105 card-3d"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${stat.bgColor} rounded-3xl`}></div>
+                    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${stat.bgColor} rounded-3xl`}></div>
                    
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-4">
@@ -1011,13 +757,14 @@ const AdminDashboard = () => {
                 )
               })}
             </div>
+            
             {/* Quick Actions & Recent Activity Grid */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Quick Actions */}
               <div className="glass-light dark:glass-dark backdrop-blur-xl rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-depth-4 hover:shadow-depth-5 transition-all duration-300 card-hover">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.actions.quickActions', 'Quick Actions')}
+                    Quick Actions
                   </h3>
                   <Zap className="h-5 w-5 text-yellow-500" />
                 </div>
@@ -1050,11 +797,12 @@ const AdminDashboard = () => {
                   })}
                 </div>
               </div>
+              
               {/* Recent Activity */}
               <div className="glass-light dark:glass-dark backdrop-blur-xl rounded-3xl border border-white/20 dark:border-gray-700/50 p-6 shadow-depth-4 hover:shadow-depth-5 transition-all duration-300 card-hover">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.activity.recent', 'Recent Activity')}
+                    Recent Activity
                   </h3>
                   <Activity className="h-5 w-5 text-blue-500" />
                 </div>
@@ -1103,10 +851,10 @@ const AdminDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.users.title', 'User Management')}
+                    User Management
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {t('admin.users.subtitle', 'Manage all user accounts and permissions')}
+                    Manage all user accounts and permissions
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1120,10 +868,11 @@ const AdminDashboard = () => {
                   </Button>
                   <Button className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    {t('admin.users.inviteUser', 'Invite User')}
+                    Invite User
                   </Button>
                 </div>
               </div>
+              
               {/* Search and Filter */}
               <div className="mt-4 flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
@@ -1151,7 +900,7 @@ const AdminDashboard = () => {
             <div className="p-6">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin-slow rounded-full h-8 w-8 border-4 border-purple-200 border-t-purple-600"></div>
+                  <LoadingSpinner size="lg" />
                 </div>
               ) : filteredUsers.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -1161,16 +910,16 @@ const AdminDashboard = () => {
                         <thead className="bg-gray-50/50 dark:bg-gray-700/50">
                           <tr>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
-                              {t('admin.users.user', 'User')}
+                              User
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
-                              {t('admin.users.status', 'Status')}
+                              Status
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
-                              {t('admin.users.role', 'Role')}
+                              Role
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
-                              {t('admin.users.actions', 'Actions')}
+                              Actions
                             </th>
                           </tr>
                         </thead>
@@ -1288,10 +1037,10 @@ const AdminDashboard = () => {
                 <div className="text-center py-12">
                   <Users className="mx-auto h-16 w-16 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    {t('admin.users.noUsers', 'No Users Found')}
+                    No Users Found
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {t('admin.users.noUsersDescription', 'There are no users matching your criteria.')}
+                    There are no users matching your criteria.
                   </p>
                   <Button
                     onClick={() => { setSearchTerm(''); setFilterStatus('all'); }}
@@ -1305,17 +1054,18 @@ const AdminDashboard = () => {
             </div>
           </div>
         )
-            case 'courses':
+     
+      case 'courses':
         return (
           <div className="glass-light dark:glass-dark backdrop-blur-xl rounded-3xl border border-white/20 dark:border-gray-700/50 shadow-depth-4 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-200/50 dark:border-gray-700/50">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.courses.title', 'Course Management')}
+                    Course Management
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {t('admin.courses.subtitle', 'Manage all courses and content')}
+                    Manage all courses and content
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1329,7 +1079,7 @@ const AdminDashboard = () => {
                   </Button>
                   <Button className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    {t('admin.courses.createCourse', 'Create Course')}
+                    Create Course
                   </Button>
                 </div>
               </div>
@@ -1338,7 +1088,7 @@ const AdminDashboard = () => {
             <div className="p-6">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin-slow rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
+                  <LoadingSpinner size="lg" />
                 </div>
               ) : courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1395,14 +1145,14 @@ const AdminDashboard = () => {
                 <div className="text-center py-12">
                   <BookOpen className="mx-auto h-16 w-16 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    {t('admin.courses.noCourses', 'No Courses Found')}
+                    No Courses Found
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {t('admin.courses.noCoursesDescription', 'There are no courses in the system yet.')}
+                    There are no courses in the system yet.
                   </p>
                   <Button className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700">
                     <Plus className="h-4 w-4 mr-2" />
-                    {t('admin.courses.createCourse', 'Create Course')}
+                    Create Course
                   </Button>
                 </div>
               )}
@@ -1417,10 +1167,10 @@ const AdminDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.sessions.title', 'Google Meet Sessions')}
+                    Teaching Sessions
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {t('admin.sessions.subtitle', 'Manage Google Meet sessions and recordings')}
+                    Manage teaching sessions and recordings
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1437,7 +1187,7 @@ const AdminDashboard = () => {
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {t('admin.sessions.scheduleSession', 'Schedule Meet Session')}
+                    Schedule Session
                   </Button>
                 </div>
               </div>
@@ -1446,7 +1196,7 @@ const AdminDashboard = () => {
             <div className="p-6">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin-slow rounded-full h-8 w-8 border-4 border-green-200 border-t-green-600"></div>
+                  <LoadingSpinner size="lg" />
                 </div>
               ) : sessions.length > 0 ? (
                 <div className="space-y-4">
@@ -1601,17 +1351,17 @@ const AdminDashboard = () => {
                 <div className="text-center py-12">
                   <Globe className="mx-auto h-16 w-16 text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    {t('admin.sessions.noSessions', 'No Sessions Found')}
+                    No Sessions Found
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    {t('admin.sessions.noSessionsDescription', 'There are no Google Meet sessions scheduled or live.')}
+                    There are no teaching sessions scheduled or live.
                   </p>
                   <Button
                     onClick={() => setShowCreateSessionModal(true)}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {t('admin.sessions.scheduleSession', 'Schedule Meet Session')}
+                    Schedule Session
                   </Button>
                 </div>
               )}
@@ -1626,10 +1376,10 @@ const AdminDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {t('admin.analytics.title', 'Platform Analytics')}
+                    Platform Analytics
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {t('admin.analytics.subtitle', 'Detailed insights and platform metrics')}
+                    Detailed insights and platform metrics
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -1646,7 +1396,7 @@ const AdminDashboard = () => {
                     className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {t('admin.analytics.exportData', 'Export Data')}
+                    Export Data
                   </Button>
                 </div>
               </div>
@@ -1677,13 +1427,14 @@ const AdminDashboard = () => {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Google Meet Sessions</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Teaching Sessions</span>
                       <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
                         {stats.meetSessions}
                       </span>
                     </div>
                   </div>
                 </div>
+                
                 {/* User Distribution */}
                 <div className="glass-light dark:glass-dark backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/50 p-6">
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-4">User Distribution</h4>
@@ -1714,6 +1465,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
+                
                 {/* Session Statistics */}
                 <div className="glass-light dark:glass-dark backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/50 p-6">
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Session Statistics</h4>
@@ -1744,6 +1496,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
+                
                 {/* Recent Recordings */}
                 <div className="lg:col-span-2 glass-light dark:glass-dark backdrop-blur-sm rounded-2xl border border-white/20 dark:border-gray-700/50 p-6">
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Recent Recordings</h4>
@@ -1803,10 +1556,10 @@ const AdminDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent mb-3">
-              {t('admin.dashboard.title', 'Admin Dashboard')}
+              Admin Dashboard
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
-              {t('admin.dashboard.subtitle', 'Manage your platform and monitor Google Meet sessions')}
+              Manage your platform and monitor teaching sessions
             </p>
           </div>
           <Button
@@ -1819,10 +1572,11 @@ const AdminDashboard = () => {
           </Button>
         </div>
       </div>
+
       {/* Tabs */}
       <div className="glass-light dark:glass-dark backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/50 p-2 shadow-depth-4">
         <nav className="flex space-x-2 rtl:space-x-reverse overflow-x-auto">
-          {['dashboard', 'users', 'courses', 'sessions', 'analytics'].map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1832,11 +1586,12 @@ const AdminDashboard = () => {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/50 dark:hover:bg-gray-700/50'
               }`}
             >
-              {t(`admin.tabs.${tab}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </nav>
       </div>
+
       {/* Content */}
       <div className="animate-fade-in">
         {renderTabContent()}
@@ -1844,13 +1599,15 @@ const AdminDashboard = () => {
 
       {/* Create Session Modal */}
       {showCreateSessionModal && (
-        <CreateSessionModal
-          onClose={() => setShowCreateSessionModal(false)}
-          onSuccess={handleSessionCreated}
-        />
+        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"><LoadingSpinner /></div>}>
+          <CreateSessionModal
+            onClose={() => setShowCreateSessionModal(false)}
+            onSuccess={handleSessionCreated}
+          />
+        </Suspense>
       )}
     </div>
   )
 }
 
-export default AdminDashboard
+export default React.memo(AdminDashboard)

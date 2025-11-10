@@ -1,214 +1,133 @@
 <!doctype html>
 <html lang="en" dir="ltr" class="h-full">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Unique Foundation - Professional Google Meet Recording & Education Platform</title>
+  <meta name="description" content="Unique Foundation: Advanced Google Meet recording platform for educators. Record, store, and share classes securely with AI-powered features and analytics." />
+  <meta name="keywords" content="google meet recorder, online classes, education platform, video recording, virtual classroom, e-learning" />
+  <meta name="author" content="Unique Foundation" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
 
-    <!-- Primary Meta Tags -->
-    <title>Unique Foundation - Professional Google Meet Recording & Education Platform</title>
-    <meta name="description" content="Unique Foundation: Advanced Google Meet recording platform for educators. Record, store, and share classes securely with AI-powered features and analytics." />
-    <meta name="keywords" content="google meet recorder, online classes, education platform, video recording, virtual classroom, e-learning" />
-    <meta name="author" content="Unique Foundation" />
-    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://uniquefoundation.com/" />
+  <meta property="og:title" content="Unique Foundation - Professional Google Meet Recording & Education Platform" />
+  <meta property="og:description" content="Record Google Meet classes with advanced features. Secure storage, AI analytics, and seamless sharing for educators and students." />
+  <meta property="og:image" content="https://uniquefoundation.com/og-image.jpg" />
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:image" content="https://uniquefoundation.com/twitter-image.jpg" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://uniquefoundation.com/" />
-    <meta property="og:title" content="Unique Foundation - Professional Google Meet Recording & Education Platform" />
-    <meta property="og:description" content="Record Google Meet classes with advanced features. Secure storage, AI analytics, and seamless sharing for educators and students." />
-    <meta property="og:image" content="https://uniquefoundation.com/og-image.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Unique Foundation - Education Platform" />
-    <meta property="og:site_name" content="Unique Foundation" />
+  <!-- Preload and async-load Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" onload="this.rel='stylesheet'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </noscript>
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://uniquefoundation.com/" />
-    <meta property="twitter:title" content="Unique Foundation - Professional Google Meet Recording & Education Platform" />
-    <meta property="twitter:description" content="Record Google Meet classes with advanced features. Secure storage, AI analytics, and seamless sharing for educators and students." />
-    <meta property="twitter:image" content="https://uniquefoundation.com/twitter-image.jpg" />
-    <meta property="twitter:image:alt" content="Unique Foundation - Education Platform" />
-
-    <!-- Additional SEO Meta Tags -->
-    <meta name="theme-color" content="#3B82F6" />
-    <meta name="msapplication-TileColor" content="#3B82F6" />
-    <meta name="msapplication-config" content="/browserconfig.xml" />
-    <meta name="apple-mobile-web-app-title" content="Unique Foundation" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "EducationalOrganization",
-      "name": "Unique Foundation",
-      "url": "https://uniquefoundation.com",
-      "logo": "https://uniquefoundation.com/logo.png",
-      "description": "Professional Google Meet recording platform for educators with AI-powered features and secure sharing capabilities.",
-      "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "US"
-      },
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer support",
-        "email": "support@uniquefoundation.com"
-      },
-      "sameAs": [
-        "https://twitter.com/uniquefoundation",
-        "https://linkedin.com/company/uniquefoundation"
-      ]
+  <!-- Critical CSS for loading screen -->
+  <style>
+    .loading-screen {
+      position: fixed; top:0; left:0;
+      width:100%; height:100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; align-items:center; justify-content:center;
+      z-index:9999;
+      transition: opacity 0.5s ease-out;
     }
-    </script>
+    .loading-spinner {
+      width:50px; height:50px;
+      border:3px solid rgba(255,255,255,0.3);
+      border-radius:50%;
+      border-top-color:#fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [data-loading]{opacity:0;}
+    [data-loaded]{opacity:1;}
+  </style>
+</head>
 
-    <!-- Preload Critical Resources -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
-
-    <!-- Performance Optimizations -->
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
-    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-
-    <!-- Critical CSS -->
-    <style>
-      .loading-screen {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        transition: opacity 0.5s ease-out;
-      }
-
-      .loading-spinner {
-        width: 50px; height: 50px;
-        border: 3px solid rgba(255,255,255,0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-      }
-
-      @keyframes spin { to { transform: rotate(360deg); } }
-
-      [data-loading] { opacity: 0; transition: opacity 0.3s ease-in; }
-      [data-loaded] { opacity: 1; }
-    </style>
-
-    <!-- Non-critical fonts -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  </head>
-
-  <body class="h-full antialiased bg-gray-50 dark:bg-gray-900" data-loading>
-    <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
-      <div class="text-center">
-        <div class="loading-spinner mb-4"></div>
-        <p class="text-white font-semibold text-lg">Unique Foundation</p>
-        <p class="text-white/80 text-sm mt-2">Loading your education platform...</p>
-      </div>
+<body class="h-full antialiased bg-gray-50 dark:bg-gray-900" data-loading>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="text-center">
+      <div class="loading-spinner mb-4"></div>
+      <p class="text-white font-semibold text-lg">Unique Foundation</p>
+      <p class="text-white/80 text-sm mt-2">Loading your education platform...</p>
     </div>
+  </div>
 
-    <!-- Main React Mount -->
-    <div id="root"></div>
+  <!-- React Mount -->
+  <div id="root"></div>
 
-    <!-- Main React Entry -->
-    <script type="module" src="/src/main.jsx"></script>
+  <!-- Main React Entry (Vite dev: /src/main.jsx) -->
+  <script type="module" src="/src/main.jsx"></script>
 
-    <!-- Safe Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
-          try {
-            const response = await fetch('/sw.js', { method: 'HEAD' });
-            if (response.ok) {
-              const registration = await navigator.serviceWorker.register('/sw.js');
-              console.log('✅ Service Worker registered:', registration);
-            } else {
-              console.warn('⚠️ No sw.js found, skipping registration.');
-            }
-          } catch (err) {
-            console.error('Service Worker registration failed:', err);
-          }
-        });
+  <!-- Remove loading screen after load -->
+  <script>
+    window.addEventListener('load', function(){
+      const screen = document.getElementById('loadingScreen');
+      if(screen){
+        screen.style.opacity = '0';
+        setTimeout(()=>screen.remove(),500);
       }
+      document.body.setAttribute('data-loaded','');
+      document.body.removeAttribute('data-loading');
+    });
+  </script>
 
-      // Handle loading states
-      window.addEventListener('load', function() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        const body = document.body;
-        setTimeout(() => {
-          if (loadingScreen) {
-            loadingScreen.style.opacity = '0';
-            setTimeout(() => loadingScreen.remove(), 500);
+  <!-- Service Worker registration for PWA -->
+  <script>
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', async ()=>{
+        try {
+          const response = await fetch('/sw.js',{method:'HEAD'});
+          if(response.ok){
+            const reg = await navigator.serviceWorker.register('/sw.js');
+            console.log('✅ Service Worker registered:', reg);
+          } else {
+            console.warn('⚠️ sw.js not found, skipping registration.');
           }
-          body.setAttribute('data-loaded', '');
-          body.removeAttribute('data-loading');
-        }, 1000);
+        } catch(e){ console.error('SW registration failed:', e); }
       });
+    }
+  </script>
 
-      window.addEventListener('error', (e) => console.error('Application error:', e.error));
-    </script>
+  <!-- 📲 Auto Install Prompt -->
+  <script>
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
 
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'GA_MEASUREMENT_ID', {
-        page_title: document.title,
-        page_location: window.location.href
+      // Create a floating install button
+      const btn = document.createElement('button');
+      btn.textContent = '📲 Install Unique Foundation';
+      btn.style = `
+        position:fixed; bottom:20px; right:20px;
+        background:#667eea; color:white; border:none;
+        padding:12px 16px; border-radius:8px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.2);
+        cursor:pointer; z-index:10000; font-weight:600;
+      `;
+      document.body.appendChild(btn);
+
+      btn.addEventListener('click', async () => {
+        btn.remove();
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('User response:', outcome);
+        deferredPrompt = null;
       });
-    </script>
-
-    <!-- Core Web Vitals Monitoring -->
-    <script>
-      if ('PerformanceObserver' in window) {
-        const observer = new PerformanceObserver((list) => {
-          list.getEntries().forEach((entry) => {
-            console.log(`${entry.name}: ${entry.value}`);
-          });
-        });
-        observer.observe({ entryTypes: ['largest-contentful-paint', 'first-input', 'cumulative-layout-shift'] });
-      }
-    </script>
-
-    <!-- PWA Install Prompt -->
-    <script>
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        const installButton = document.createElement('button');
-        installButton.textContent = 'Install App';
-        installButton.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-        installButton.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') installButton.remove();
-            deferredPrompt = null;
-          }
-        });
-
-        if (window.matchMedia('(max-width: 768px)').matches &&
-            !window.matchMedia('(display-mode: standalone)').matches) {
-          document.body.appendChild(installButton);
-        }
-      });
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>

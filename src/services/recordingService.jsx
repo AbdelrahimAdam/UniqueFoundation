@@ -16,7 +16,8 @@ import {
   Timestamp,
   getCountFromServer,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  increment
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 
@@ -165,6 +166,219 @@ export const recordingService = {
     } catch (error) {
       console.error('❌ Error creating recording:', error);
       throw new Error(`Failed to create recording: ${error.message}`);
+    }
+  },
+
+  // Get recordings accessible to students (with proper security rule compliance)
+  getStudentRecordings: async (studentId, options = {}) => {
+    try {
+      console.log('🔄 Fetching student recordings:', studentId);
+      
+      const {
+        limit: resultLimit = 50,
+        category = 'all',
+        instructorId = null,
+        sortBy = 'createdAt',
+        sortOrder = 'desc'
+      } = options;
+
+      // Build query for published and available recordings
+      let recordingsQuery = query(
+        collection(db, 'recordings'),
+        where('isPublished', '==', true),
+        where('recordingStatus', '==', 'available'),
+        orderBy(sortBy, sortOrder)
+      );
+
+      // Apply category filter
+      if (category && category !== 'all') {
+        recordingsQuery = query(recordingsQuery, where('category', '==', category));
+      }
+
+      // Apply instructor filter
+      if (instructorId) {
+        recordingsQuery = query(recordingsQuery, where('instructorId', '==', instructorId));
+      }
+
+      // Apply limit
+      if (resultLimit && resultLimit > 0) {
+        recordingsQuery = query(recordingsQuery, limit(resultLimit));
+      }
+
+      const recordingsSnapshot = await getDocs(recordingsQuery);
+      const recordings = [];
+
+      // Get student's enrolled courses for access checking
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('studentId', '==', studentId)
+      );
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      const enrolledCourseIds = enrollmentsSnapshot.docs.map(doc => doc.data().courseId);
+
+      recordingsSnapshot.forEach(doc => {
+        const recordingData = doc.data();
+        const recordingCourseId = recordingData.courseId;
+        
+        // Students can see recordings if:
+        // 1. Recording is published AND available OR
+        // 2. Student is enrolled in the course OR
+        // 3. Recording is public/unlisted OR
+        // 4. Course is published
+        const canView = (recordingData.isPublished === true && 
+                        recordingData.recordingStatus === 'available') ||
+                       enrolledCourseIds.includes(recordingCourseId) ||
+                       recordingData.visibility === 'public' ||
+                       recordingData.visibility === 'unlisted';
+
+        if (canView) {
+          // Check if student has watched this recording
+          const watched = studentId ? 
+            recordingData.studentProgress?.[studentId]?.watched || false :
+            false;
+          
+          const progress = studentId ?
+            recordingData.studentProgress?.[studentId]?.progress || 0 :
+            0;
+
+          recordings.push({
+            id: doc.id,
+            ...recordingData,
+            watched,
+            progress,
+            createdAt: recordingData.createdAt?.toDate?.(),
+            updatedAt: recordingData.updatedAt?.toDate?.(),
+            publishedAt: recordingData.publishedAt?.toDate?.(),
+            recordingAvailableFrom: recordingData.recordingAvailableFrom?.toDate?.(),
+            isEnrolled: enrolledCourseIds.includes(recordingCourseId)
+          });
+        }
+      });
+
+      console.log(`✅ Fetched ${recordings.length} recordings for student`);
+      return recordings;
+    } catch (error) {
+      console.error('❌ Error fetching student recordings:', error);
+      throw new Error(`Failed to fetch student recordings: ${error.message}`);
+    }
+  },
+
+  // Get featured recordings for students
+  getFeaturedRecordingsForStudents: async (studentId, limit = 10) => {
+    try {
+      console.log('🔄 Fetching featured recordings for student:', studentId);
+      
+      const recordingsQuery = query(
+        collection(db, 'recordings'),
+        where('isPublished', '==', true),
+        where('isFeatured', '==', true),
+        where('recordingStatus', '==', 'available'),
+        orderBy('createdAt', 'desc'),
+        limit(limit)
+      );
+
+      const snapshot = await getDocs(recordingsQuery);
+      const recordings = [];
+
+      // Get student's enrolled courses for access checking
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('studentId', '==', studentId)
+      );
+      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+      const enrolledCourseIds = enrollmentsSnapshot.docs.map(doc => doc.data().courseId);
+
+      snapshot.forEach(doc => {
+        const recordingData = doc.data();
+        const recordingCourseId = recordingData.courseId;
+        
+        // Check if student can view this featured recording
+        const canView = recordingData.visibility === 'public' ||
+                       recordingData.visibility === 'unlisted' ||
+                       enrolledCourseIds.includes(recordingCourseId);
+
+        if (canView) {
+          const watched = studentId ? 
+            recordingData.studentProgress?.[studentId]?.watched || false :
+            false;
+
+          recordings.push({
+            id: doc.id,
+            ...recordingData,
+            watched,
+            progress: recordingData.studentProgress?.[studentId]?.progress || 0,
+            createdAt: recordingData.createdAt?.toDate?.(),
+            updatedAt: recordingData.updatedAt?.toDate?.(),
+            publishedAt: recordingData.publishedAt?.toDate?.(),
+            recordingAvailableFrom: recordingData.recordingAvailableFrom?.toDate?.(),
+            isEnrolled: enrolledCourseIds.includes(recordingCourseId)
+          });
+        }
+      });
+
+      console.log(`✅ Fetched ${recordings.length} featured recordings for student`);
+      return recordings;
+    } catch (error) {
+      console.error('❌ Error fetching featured recordings for students:', error);
+      throw new Error(`Failed to fetch featured recordings: ${error.message}`);
+    }
+  },
+
+  // Update student progress for a recording
+  updateStudentProgress: async (recordingId, studentId, progressData) => {
+    try {
+      console.log('🔄 Updating student progress:', { recordingId, studentId });
+      
+      const updateData = {
+        [`studentProgress.${studentId}`]: {
+          progress: progressData.progress || 0,
+          watched: progressData.watched || false,
+          lastWatched: serverTimestamp(),
+          completedAt: progressData.progress >= 95 ? serverTimestamp() : null,
+          ...progressData
+        },
+        updatedAt: serverTimestamp()
+      };
+
+      // If student completed watching, add to completedBy array
+      if (progressData.progress >= 95) {
+        const recording = await recordingService.getRecordingById(recordingId);
+        const completedBy = recording.completedBy || [];
+        if (!completedBy.includes(studentId)) {
+          updateData.completedBy = arrayUnion(studentId);
+        }
+      }
+
+      await updateDoc(doc(db, 'recordings', recordingId), updateData);
+      console.log('✅ Student progress updated successfully');
+      
+      return {
+        success: true,
+        recordingId,
+        studentId,
+        progress: progressData.progress
+      };
+    } catch (error) {
+      console.error('❌ Error updating student progress:', error);
+      throw new Error(`Failed to update student progress: ${error.message}`);
+    }
+  },
+
+  // Increment recording views
+  incrementRecordingViews: async (recordingId) => {
+    try {
+      const recordingRef = doc(db, 'recordings', recordingId);
+      
+      await updateDoc(recordingRef, {
+        views: increment(1),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Recording views incremented');
+      return true;
+    } catch (error) {
+      console.error('❌ Error incrementing views:', error);
+      throw new Error(`Failed to increment views: ${error.message}`);
     }
   },
 
@@ -818,85 +1032,6 @@ export const recordingService = {
     }
   },
 
-  // Get recordings for students (published and accessible)
-  getStudentRecordings: async (options = {}) => {
-    try {
-      console.log('🔄 Fetching student recordings with options:', options);
-      
-      const {
-        studentId,
-        cursor = null,
-        limit: resultLimit = 12,
-        status = 'completed',
-        category = 'all',
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
-        enrolledCourses = []
-      } = options;
-
-      let recordingsQuery = query(
-        collection(db, 'recordings'),
-        where('isPublished', '==', true),
-        where('status', '==', 'completed'),
-        orderBy(sortBy, sortOrder)
-      );
-
-      // Apply category filter
-      if (category !== 'all') {
-        recordingsQuery = query(recordingsQuery, where('category', '==', category));
-      }
-
-      // Filter by enrolled courses if provided
-      if (enrolledCourses && enrolledCourses.length > 0) {
-        recordingsQuery = query(recordingsQuery, where('courseId', 'in', enrolledCourses));
-      }
-
-      // Apply pagination
-      if (cursor) {
-        recordingsQuery = query(recordingsQuery, startAfter(cursor), limit(resultLimit));
-      } else {
-        recordingsQuery = query(recordingsQuery, limit(resultLimit));
-      }
-
-      const snapshot = await getDocs(recordingsQuery);
-      const recordings = snapshot.docs.map(doc => {
-        const recordingData = doc.data();
-        
-        // Check if student has watched this recording
-        const watched = studentId ? 
-          recordingData.studentProgress?.[studentId]?.watched || false :
-          false;
-        
-        const progress = studentId ?
-          recordingData.studentProgress?.[studentId]?.progress || 0 :
-          0;
-
-        return {
-          id: doc.id,
-          ...recordingData,
-          watched,
-          progress,
-          createdAt: recordingData.createdAt?.toDate?.(),
-          updatedAt: recordingData.updatedAt?.toDate?.(),
-          publishedAt: recordingData.publishedAt?.toDate?.(),
-          recordingAvailableFrom: recordingData.recordingAvailableFrom?.toDate?.()
-        };
-      });
-
-      // Get next cursor for pagination
-      const nextCursor = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-
-      console.log(`✅ Fetched ${recordings.length} student recordings`);
-      return {
-        recordings,
-        nextCursor: nextCursor || undefined
-      };
-    } catch (error) {
-      console.error('❌ Error fetching student recordings:', error);
-      throw new Error(`Failed to fetch student recordings: ${error.message}`);
-    }
-  },
-
   // Get all recordings with advanced filtering
   getAllRecordings: async (options = {}) => {
     try {
@@ -1117,66 +1252,6 @@ export const recordingService = {
     } catch (error) {
       console.error('❌ Error updating recording:', error);
       throw new Error(`Failed to update recording: ${error.message}`);
-    }
-  },
-
-  // Update student progress for a recording
-  updateStudentProgress: async (recordingId, studentId, progressData) => {
-    try {
-      console.log('🔄 Updating student progress:', { recordingId, studentId });
-      
-      const updateData = {
-        [`studentProgress.${studentId}`]: {
-          progress: progressData.progress || 0,
-          watched: progressData.watched || false,
-          lastWatched: serverTimestamp(),
-          completedAt: progressData.progress >= 95 ? serverTimestamp() : null,
-          ...progressData
-        },
-        updatedAt: serverTimestamp()
-      };
-
-      // If student completed watching, add to completedBy array
-      if (progressData.progress >= 95) {
-        const recording = await recordingService.getRecordingById(recordingId);
-        const completedBy = recording.completedBy || [];
-        if (!completedBy.includes(studentId)) {
-          updateData.completedBy = arrayUnion(studentId);
-        }
-      }
-
-      await updateDoc(doc(db, 'recordings', recordingId), updateData);
-      console.log('✅ Student progress updated successfully');
-      
-      return {
-        success: true,
-        recordingId,
-        studentId,
-        progress: progressData.progress
-      };
-    } catch (error) {
-      console.error('❌ Error updating student progress:', error);
-      throw new Error(`Failed to update student progress: ${error.message}`);
-    }
-  },
-
-  // Increment recording views
-  incrementRecordingViews: async (recordingId) => {
-    try {
-      const recording = await recordingService.getRecordingById(recordingId);
-      if (!recording) return;
-
-      const newViews = (recording.views || 0) + 1;
-      
-      await updateDoc(doc(db, 'recordings', recordingId), {
-        views: newViews,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('✅ Recording views incremented:', { recordingId, newViews });
-    } catch (error) {
-      console.error('❌ Error incrementing recording views:', error);
-      // Don't throw error for non-critical updates
     }
   },
 

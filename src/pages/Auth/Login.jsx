@@ -53,7 +53,11 @@ const Login = () => {
         {/* Header */}
         <div className="text-center">
           <div className="flex items-center justify-center mb-6">
-            <Video className="h-12 w-12 text-blue-600" />
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="h-16 w-16 rounded-full object-cover"
+            />
           </div>
           <h2 className="text-3xl font-bold text-gray-900">
             {t('auth.login', 'Sign in to your account')}
