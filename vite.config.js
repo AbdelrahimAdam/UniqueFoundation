@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
@@ -8,6 +9,12 @@ export default defineConfig({
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     'process.env': {},
     global: 'globalThis',
+  },
+
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
   },
 
   server: {
@@ -31,7 +38,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
           router: ['react-router-dom'],
-          ui: ['framer-motion', 'lucide-react', 'react-modal'],
+          ui: ['lucide-react', 'react-modal'],
           utils: ['axios', 'date-fns'],
         },
         assetFileNames: (assetInfo) => {
@@ -49,14 +56,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: [
-      'react', 
-      'react-dom', 
-      'firebase/app',
-      'framer-motion'
-    ],
-    // Force Vite to pre-bundle framer-motion
-    force: true,
+    include: ['react', 'react-dom', 'firebase/app'],
   },
 
   publicDir: 'public',
