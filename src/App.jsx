@@ -1,40 +1,40 @@
 import React, { Suspense, useEffect, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './hooks/useAuth.jsx';
-import LoadingSpinner from './components/UI/LoadingSpinner.jsx';
+import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
+import LoadingSpinner from '@/components/UI/LoadingSpinner.jsx';
 
 // Lazy load auth pages
-const Login = lazy(() => import('./pages/Auth/Login.jsx'));
-const Register = lazy(() => import('./pages/Auth/Register.jsx'));
+const Login = lazy(() => import('@/pages/Auth/Login.jsx'));
+const Register = lazy(() => import('@/pages/Auth/Register.jsx'));
 
 // Lazy load layout
-const Layout = lazy(() => import('./components/Layout/Layout.jsx'));
+const Layout = lazy(() => import('@/components/Layout/Layout.jsx'));
 
 // Lazy load dashboards
-const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard.jsx'));
-const TeacherDashboard = lazy(() => import('./pages/Teacher/Dashboard.jsx'));
-const StudentDashboard = lazy(() => import('./pages/Student/Dashboard.jsx'));
+const AdminDashboard = lazy(() => import('@/pages/Admin/Dashboard.jsx'));
+const TeacherDashboard = lazy(() => import('@/pages/Teacher/Dashboard.jsx'));
+const StudentDashboard = lazy(() => import('@/pages/Student/Dashboard.jsx'));
 
 // Lazy load admin pages
-const UserManagement = lazy(() => import('./pages/Admin/UserManagement.jsx'));
-const CourseManagement = lazy(() => import('./pages/Admin/CourseManagement.jsx'));
-const SessionManagement = lazy(() => import('./pages/Admin/SessionManagement.jsx'));
-const Analytics = lazy(() => import('./pages/Admin/Analytics.jsx'));
+const UserManagement = lazy(() => import('@/pages/Admin/UserManagement.jsx'));
+const CourseManagement = lazy(() => import('@/pages/Admin/CourseManagement.jsx'));
+const SessionManagement = lazy(() => import('@/pages/Admin/SessionManagement.jsx'));
+const Analytics = lazy(() => import('@/pages/Admin/Analytics.jsx'));
 
 // Lazy load teacher pages
-const TeacherRecordings = lazy(() => import('./pages/Teacher/TeacherRecordings.jsx'));
-const TeacherSessions = lazy(() => import('./pages/Teacher/TeacherSessions.jsx'));
-const TeacherStudents = lazy(() => import('./pages/Teacher/TeacherStudents.jsx'));
+const TeacherRecordings = lazy(() => import('@/pages/Teacher/TeacherRecordings.jsx'));
+const TeacherSessions = lazy(() => import('@/pages/Teacher/TeacherSessions.jsx'));
+const TeacherStudents = lazy(() => import('@/pages/Teacher/TeacherStudents.jsx'));
 
 // Lazy load student pages
-const StudentSessions = lazy(() => import('./pages/Student/StudentSessions.jsx'));
-const StudentRecordings = lazy(() => import('./pages/Student/StudentRecordings.jsx'));
-const StudentCourses = lazy(() => import('./pages/Student/StudentCourses.jsx'));
+const StudentSessions = lazy(() => import('@/pages/Student/StudentSessions.jsx'));
+const StudentRecordings = lazy(() => import('@/pages/Student/StudentRecordings.jsx'));
+const StudentCourses = lazy(() => import('@/pages/Student/StudentCourses.jsx'));
 
 // Lazy load shared components
-const RecordingDetail = lazy(() => import('./pages/Recording/RecordingDetail.jsx'));
-const Profile = lazy(() => import('./pages/User/Profile.jsx'));
-const SubscriptionPlans = lazy(() => import('./components/Subscription/SubscriptionPlans.jsx'));
+const RecordingDetail = lazy(() => import('@/pages/Recording/RecordingDetail.jsx'));
+const Profile = lazy(() => import('@/pages/User/Profile.jsx'));
+const SubscriptionPlans = lazy(() => import('@/components/Subscription/SubscriptionPlans.jsx'));
 
 // Loading component for Suspense fallback
 const PageLoading = ({ message = "Loading..." }) => (
@@ -49,12 +49,12 @@ const PageLoading = ({ message = "Loading..." }) => (
 // ✅ Force Logout Component
 const Logout = () => {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { signOut } = useAuth()
 
   useEffect(() => {
     const performLogout = async () => {
       try {
-        await logout()
+        await signOut()
       } catch (error) {
         console.error('Logout error:', error)
       } finally {
@@ -65,32 +65,32 @@ const Logout = () => {
     }
 
     performLogout()
-  }, [navigate, logout])
+  }, [navigate, signOut])
 
   return <PageLoading message="Logging out..." />
 }
 
 // ✅ Protected Route Component (Optimized)
-const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) => {
-  const { isAuthenticated, role, profile, isLoading } = useAuth()
+const ProtectedRoute = ({ children, requiredRole }) => {
+  const { user, userRole, userProfile, loading } = useAuth()
   const location = useLocation()
 
-  if (isLoading) {
+  if (loading) {
     return <PageLoading />
   }
 
   // If no user and not loading, redirect to login
-  if (!isAuthenticated && !isLoading) {
+  if (!user && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   // If user exists but profile is still loading, show loading
-  if (isAuthenticated && !profile) {
+  if (user && !userProfile) {
     return <PageLoading message="Loading user profile..." />
   }
 
   // ⏳ Pending approval
-  if (profile && !profile.isActive && role !== 'admin') {
+  if (userProfile && !userProfile.isActive && userRole !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center max-w-md mx-4">
@@ -119,24 +119,24 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
   }
 
   // Check role-based access
-  if (requiredRole && role !== requiredRole) {
+  if (requiredRole && userRole !== requiredRole) {
     return <Navigate to="/unauthorized" replace />
   }
 
-  return <>{children}</>
+  return children
 }
 
 // ✅ Public Route Component (Optimized)
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, role, isLoading } = useAuth()
+const PublicRoute = ({ children }) => {
+  const { user, userRole, loading } = useAuth()
 
-  if (isLoading) {
+  if (loading) {
     return <PageLoading />
   }
 
   // If user exists and not loading, redirect to appropriate dashboard
-  if (isAuthenticated && !isLoading) {
-    switch (role) {
+  if (user && !loading) {
+    switch (userRole) {
       case 'admin':
         return <Navigate to="/admin/dashboard" replace />
       case 'teacher':
@@ -148,14 +148,14 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  return <>{children}</>
+  return children
 }
 
 // ✅ Role-based dashboard component (Optimized)
 const RoleBasedDashboard = () => {
-  const { role, profile, isLoading } = useAuth()
+  const { userRole, userProfile, loading } = useAuth()
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
@@ -166,7 +166,7 @@ const RoleBasedDashboard = () => {
     )
   }
 
-  if (!profile) {
+  if (!userProfile) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center max-w-md">
@@ -184,7 +184,7 @@ const RoleBasedDashboard = () => {
     )
   }
 
-  if (!profile.isActive && role !== 'admin') {
+  if (!userProfile.isActive && userRole !== 'admin') {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center max-w-md">
@@ -206,7 +206,7 @@ const RoleBasedDashboard = () => {
     admin: AdminDashboard,
     teacher: TeacherDashboard,
     student: StudentDashboard
-  }[role || '']
+  }[userRole]
 
   if (!DashboardComponent) {
     return (
@@ -234,7 +234,7 @@ const RoleBasedDashboard = () => {
 }
 
 // ✅ Lazy placeholder components for missing pages
-const createLazyPlaceholder = (title: string, description: string) => 
+const createLazyPlaceholder = (title, description) => 
   lazy(() => {
     const PlaceholderComponent = () => (
       <div className="p-6">
@@ -281,7 +281,7 @@ const UnauthorizedPage = () => (
 )
 
 // ✅ Route Layout Wrapper (Optimized)
-const RouteLayout = ({ role, children }: { role?: string, children: React.ReactNode }) => (
+const RouteLayout = ({ role, children }) => (
   <Suspense fallback={<PageLoading message="Loading layout..." />}>
     <Layout role={role}>
       <Suspense fallback={<PageLoading message="Loading page..." />}>
@@ -348,7 +348,7 @@ const StudentRoutes = () => (
 
 // ✅ Main Routes (Optimized)
 function AppRoutes() {
-  const { role } = useAuth()
+  const { userRole } = useAuth()
 
   return (
     <Routes>
@@ -380,7 +380,7 @@ function AppRoutes() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <RoleBasedDashboard />
             </RouteLayout>
           </ProtectedRoute>
@@ -434,7 +434,7 @@ function AppRoutes() {
         path="/recording/:id"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <RecordingDetail />
             </RouteLayout>
           </ProtectedRoute>
@@ -444,7 +444,7 @@ function AppRoutes() {
         path="/profile"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <Profile />
             </RouteLayout>
           </ProtectedRoute>
@@ -454,7 +454,7 @@ function AppRoutes() {
         path="/subscription"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <SubscriptionPlans />
             </RouteLayout>
           </ProtectedRoute>
@@ -464,7 +464,7 @@ function AppRoutes() {
         path="/notifications"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <NotificationsPage />
             </RouteLayout>
           </ProtectedRoute>
@@ -474,7 +474,7 @@ function AppRoutes() {
         path="/help"
         element={
           <ProtectedRoute>
-            <RouteLayout role={role}>
+            <RouteLayout role={userRole}>
               <HelpPage />
             </RouteLayout>
           </ProtectedRoute>
@@ -503,24 +503,24 @@ function AppRoutes() {
 
 // ✅ Component to handle root redirect based on user role
 const NavigateToDashboard = () => {
-  const { isAuthenticated, role, isLoading } = useAuth()
+  const { user, userRole, loading } = useAuth()
 
-  if (isLoading) {
+  if (loading) {
     return <PageLoading />
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 
   // Redirect to appropriate dashboard based on role
-  const dashboardPaths: Record<string, string> = {
+  const dashboardPaths = {
     admin: '/admin/dashboard',
     teacher: '/teacher/dashboard', 
     student: '/student/dashboard'
   }
 
-  const dashboardPath = role ? dashboardPaths[role] : null
+  const dashboardPath = dashboardPaths[userRole]
   return dashboardPath ? <Navigate to={dashboardPath} replace /> : <Navigate to="/login" replace />
 }
 
@@ -538,9 +538,3 @@ function App() {
 }
 
 export default App
-
-  
-    
-  
-      
-
