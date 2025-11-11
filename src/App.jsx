@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from '@/hooks/use Auth.jsx';
+import { AuthProvider, useAuth } from '@/hooks/useAuth.jsx';
 import LoadingSpinner from '@/components/UI/LoadingSpinner.jsx';
 
 // Lazy load auth pages
