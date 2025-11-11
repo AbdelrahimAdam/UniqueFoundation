@@ -1,49 +1,365 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can read their own profile, only write specific fields
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && 
-        request.auth.uid == userId && 
-        request.resource.data.keys().hasOnly(['email', 'displayName', 'createdAt', 'isActive', 'isAdmin', 'subscription']);
-      
-      // Prevent users from modifying their own status
-      allow update: if request.auth != null && 
-        request.auth.uid == userId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
-    }
+match /databases/{database}/documents {
+
+// === PRODUCTION HELPER FUNCTIONS ===  
+function isAuthenticated() {  
+  return request.auth != null;  
+}  
+  
+function isOwner(userDocId) {  
+  return request.auth.uid == userDocId;  
+}  
+  
+function getUserData() {  
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;  
+}  
+  
+function isAdmin() {  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         getUserData().role == 'admin';  
+}  
+  
+function isTeacher() {  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         getUserData().role == 'teacher';  
+}  
+  
+function isStudent() {  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         getUserData().role == 'student';  
+}  
+  
+function isApprovedUser() {  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         (getUserData().isActive == true || getUserData().role == 'admin');  
+}  
+  
+function hasActiveSubscription() {  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         getUserData().subscription.status == 'active' &&  
+         (getUserData().subscription.endDate == null ||   
+          getUserData().subscription.endDate > request.time);  
+}  
+  
+function canAccessPremiumContent() {  
+  // Admins and teachers always have access  
+  // Students need active subscription that hasn't expired  
+  return isAuthenticated() &&   
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&  
+         (  
+           getUserData().role == 'admin' ||   
+           getUserData().role == 'teacher' ||  
+           (getUserData().role == 'student' && hasActiveSubscription())  
+         );  
+}  
+  
+function isValidUserData() {  
+  return request.resource.data.keys().hasAll([  
+    'uid', 'email', 'firstName', 'lastName', 'displayName', 'role',   
+    'isActive', 'createdAt', 'updatedAt', 'subscription'  
+  ]) &&  
+  request.resource.data.uid == request.auth.uid &&  
+  request.resource.data.role in ['student', 'teacher', 'admin'] &&  
+  request.resource.data.isActive is bool;  
+}  
+
+function isValidSubscriptionData() {  
+  return request.resource.data.subscription.keys().hasAll([  
+    'plan', 'status', 'stripeSubscriptionId', 'stripeCustomerId', 'startDate', 'endDate', 'priceId'  
+  ]) &&  
+  request.resource.data.subscription.status in ['active', 'expired', 'inactive', 'pending_payment', 'canceled'] &&  
+  (request.resource.data.subscription.startDate == null || request.resource.data.subscription.startDate is timestamp) &&  
+  (request.resource.data.subscription.endDate == null || request.resource.data.subscription.endDate is timestamp);  
+}  
+
+function isSubscriptionNotExpired() {  
+  return request.resource.data.subscription.endDate == null ||   
+         request.resource.data.subscription.endDate > request.time;  
+}  
+
+function isValidUserCreate() {  
+  return request.resource.data.uid == request.auth.uid &&  
+         request.resource.data.role in ['student', 'teacher', 'admin'] &&  
+         request.resource.data.isActive is bool &&  
+         request.resource.data.subscription.plan is string &&  
+         request.resource.data.subscription.status in ['active', 'expired', 'inactive', 'pending_payment', 'canceled'];  
+}  
+
+// === USERS COLLECTION ===  
+match /users/{userId} {  
+  // Users can create their own profile during registration  
+  allow create: if   
+    isAuthenticated() &&   
+    request.auth.uid == userId &&  
+    isValidUserCreate();  
     
-    // Admin can read all users and update status
-    match /users/{userId} {
-      allow read, update: if isAdmin();
-    }
+  // Users can read their own profile, admins can read all  
+  allow read: if   
+    isAuthenticated() &&   
+    (isOwner(userId) || isAdmin());  
     
-    // Sessions: Read for approved users, write for admins
-    match /sessions/{sessionId} {
-      allow read: if isApprovedUser();
-      allow write: if isAdmin();
-    }
+  // Users can update their own profile (with restrictions), admins can update any  
+  allow update: if   
+    isAuthenticated() &&   
+    (  
+      (isOwner(userId) &&   
+       !('role' in request.resource.data) &&   
+       !('isActive' in request.resource.data) &&  
+       !request.resource.data.keys().hasAny(['createdAt']) &&  
+       request.resource.data.uid == resource.data.uid) ||  
+      isAdmin()  
+    );  
     
-    // Courses: Read for approved users, write for admins
-    match /courses/{courseId} {
-      allow read: if isApprovedUser();
-      allow write: if isAdmin();
-    }
+  // Only admins can delete users  
+  allow delete: if isAdmin();  
+}  
+
+// === COURSES COLLECTION ===  
+match /courses/{courseId} {  
+  // Anyone can read published courses (public listing)  
+  allow read: if resource.data.isPublished == true;  
     
-    // Helper functions
-    function isAdmin() {
-      return request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
+  // Only approved teachers and admins can create courses  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (isTeacher() || isAdmin()) &&  
+    request.resource.data.authorId == request.auth.uid;  
     
-    function isApprovedUser() {
-      return request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
-    }
+  // Only course author or admin can update  
+  allow update: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (resource.data.authorId == request.auth.uid || isAdmin());  
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-  }
+  // Only course author or admin can delete  
+  allow delete: if   
+    isAuthenticated() &&   
+    (resource.data.authorId == request.auth.uid || isAdmin());  
+}  
+
+// === LESSONS COLLECTION ===  
+match /lessons/{lessonId} {  
+  // Only authenticated users with premium access can read lessons  
+  allow read: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    canAccessPremiumContent();  
+    
+  // Only teachers and admins can create lessons  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (isTeacher() || isAdmin());  
+    
+  // Only lesson author or admin can update/delete  
+  allow update, delete: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (resource.data.authorId == request.auth.uid || isAdmin());  
+}  
+
+// === ENROLLMENTS COLLECTION ===  
+match /enrollments/{enrollmentId} {  
+  // Users can read their own enrollments, admins can read all  
+  allow read: if   
+    isAuthenticated() &&   
+    (resource.data.userId == request.auth.uid || isAdmin());  
+    
+  // Users can enroll themselves if they have active subscription  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    canAccessPremiumContent() &&  
+    request.resource.data.userId == request.auth.uid;  
+    
+  // Only admins can update or delete enrollments  
+  allow update, delete: if isAdmin();  
+}  
+
+// === PROGRESS COLLECTION ===  
+match /progress/{userId}/{documentId} {  
+  // Users can read their own progress, admins can read all  
+  allow read: if   
+    isAuthenticated() &&   
+    (userId == request.auth.uid || isAdmin());  
+    
+  // Users can write their own progress if they have access to content  
+  allow write: if   
+    isAuthenticated() &&   
+    userId == request.auth.uid &&  
+    isApprovedUser() &&  
+    canAccessPremiumContent();  
+}  
+
+// === SESSIONS COLLECTION (Live Classes) ===  
+match /sessions/{sessionId} {  
+  // Teachers and admins can create sessions  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (isTeacher() || isAdmin());  
+    
+  // Users can read sessions they're enrolled in, teachers can read their own sessions  
+  allow read: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (  
+      resource.data.teacherId == request.auth.uid ||  
+      resource.data.participants.hasAny([request.auth.uid]) ||  
+      isAdmin()  
+    );  
+    
+  // Only session teacher or admin can update  
+  allow update: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (resource.data.teacherId == request.auth.uid || isAdmin());  
+    
+  // Only admins can delete sessions  
+  allow delete: if isAdmin();  
+}  
+
+// === RECORDINGS COLLECTION ===  
+match /recordings/{recordingId} {  
+  // Users can read recordings of sessions they attended  
+  allow read: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    canAccessPremiumContent() &&  
+    (  
+      resource.data.participants.hasAny([request.auth.uid]) ||  
+      resource.data.teacherId == request.auth.uid ||  
+      isAdmin()  
+    );  
+    
+  // Only teachers and admins can create recordings  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (isTeacher() || isAdmin());  
+    
+  // Only recording owner or admin can update/delete  
+  allow update, delete: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    (resource.data.teacherId == request.auth.uid || isAdmin());  
+}  
+
+// === PAYMENTS COLLECTION (Stripe webhook data) ===  
+match /payments/{paymentId} {  
+  // Users can read their own payments  
+  allow read: if   
+    isAuthenticated() &&   
+    resource.data.userId == request.auth.uid;  
+    
+  // Only Stripe webhook (via admin) can create payments  
+  allow create: if isAdmin();  
+    
+  // Payments are immutable  
+  allow update, delete: if false;  
+}  
+
+// === NOTIFICATIONS COLLECTION ===  
+match /notifications/{notificationId} {  
+  // Users can read their own notifications  
+  allow read: if   
+    isAuthenticated() &&   
+    resource.data.userId == request.auth.uid;  
+    
+  // System can create notifications (admin operations)  
+  allow create: if isAdmin();  
+    
+  // Users can mark their own notifications as read  
+  allow update: if   
+    isAuthenticated() &&   
+    resource.data.userId == request.auth.uid &&  
+    request.resource.data.keys().hasOnly(['read']) &&  
+    request.resource.data.read is bool;  
+    
+  // Only admins can delete notifications  
+  allow delete: if isAdmin();  
+}  
+
+// === MESSAGES COLLECTION ===  
+match /messages/{messageId} {  
+  // Users can read messages sent to or from them  
+  allow read: if   
+    isAuthenticated() &&   
+    (resource.data.fromUserId == request.auth.uid ||   
+     resource.data.toUserId == request.auth.uid ||  
+     isAdmin());  
+    
+  // Users can send messages if approved  
+  allow create: if   
+    isAuthenticated() &&   
+    isApprovedUser() &&  
+    request.resource.data.fromUserId == request.auth.uid;  
+    
+  // Messages are immutable once sent  
+  allow update, delete: if false;  
+}  
+
+// === SUBSCRIPTION MANAGEMENT ===  
+match /subscription_events/{eventId} {  
+  // Only admins can manage subscription events  
+  allow read, write: if isAdmin();  
+}  
+
+// === ADMIN-ONLY COLLECTIONS ===  
+match /analytics/{documentId} {  
+  allow read, write: if isAdmin();  
+}  
+  
+match /settings/{documentId} {  
+  allow read, write: if isAdmin();  
+}  
+  
+match /system/{document=**} {  
+  allow read, write: if isAdmin();  
+}  
+
+// === PUBLIC CONTENT (Read-only for everyone) ===  
+match /public/{document=**} {  
+  allow read: if true;  
+  allow write: if isAdmin();  
+}  
+
+// === TEMPLATES AND STATIC CONTENT ===  
+match /templates/{documentId} {  
+  // Anyone can read templates  
+  allow read: if true;  
+  // Only admins can modify templates  
+  allow write: if isAdmin();  
+}  
+
+// === USER UPLOADS ===  
+match /uploads/{userId}/{documentId} {  
+  // Users can manage their own uploads  
+  allow read, write: if   
+    isAuthenticated() &&   
+    userId == request.auth.uid &&  
+    isApprovedUser();  
+    
+  // Admins can manage all uploads  
+  allow read, write: if isAdmin();  
+}  
+
+// === BACKUP AND ARCHIVES ===  
+match /backups/{document=**} {  
+  allow read, write: if isAdmin();  
+}  
+
+// === DEFAULT DENY - SECURITY LAYER ===  
+match /{document=**} {  
+  allow read, write: if false;  
+}
+
+}
 }
