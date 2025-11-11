@@ -1,7 +1,10 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ],
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/((?!assets|favicon|icon|manifest|service-worker|sw\\.js).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
