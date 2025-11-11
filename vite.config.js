@@ -89,7 +89,7 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: { 
-        drop_console: process.env.NODE_ENV === 'production',
+        drop_console: true,
         drop_debugger: true
       },
     },
@@ -122,6 +122,6 @@ export default defineConfig({
 
   publicDir: 'public',
   
-  // Add base URL for Vercel deployment
-  base: './',
+  // Remove base URL or set to empty string for Vercel
+  base: '',
 })
