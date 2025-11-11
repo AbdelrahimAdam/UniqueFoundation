@@ -1,7 +1,7 @@
 // pages/admin/SessionManagement.js
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { sessionService, recordingService, courseService, userService } from '../../services'
+import { sessionService, recordingService, courseService } from '../../services'
 import Button from '../../components/UI/Button.jsx'
 import LoadingSpinner from '../../components/UI/LoadingSpinner.jsx'
 import CreateSessionModal from '../../components/Session/CreateSessionModal.jsx'
@@ -10,6 +10,7 @@ import {
   Video,
   Plus,
   Search,
+  Filter,
   PlayCircle,
   Calendar,
   Clock,
@@ -17,13 +18,15 @@ import {
   Eye,
   Edit,
   Trash2,
+  MoreVertical,
   Download,
+  Link,
   CheckCircle,
+  XCircle,
+  AlertCircle,
   FileVideo,
   Upload,
-  BarChart3,
-  User,
-  BookOpen
+  RefreshCw
 } from 'lucide-react'
 
 const SessionManagement = () => {
@@ -31,17 +34,14 @@ const SessionManagement = () => {
   const [sessions, setSessions] = useState([])
   const [recordings, setRecordings] = useState([])
   const [courses, setCourses] = useState([])
-  const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all') // all, sessions, recordings
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false)
   const [showCreateRecordingModal, setShowCreateRecordingModal] = useState(false)
   const [actionLoading, setActionLoading] = useState({})
   const [selectedItem, setSelectedItem] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
-  const [userRole, setUserRole] = useState('')
 
   useEffect(() => {
     loadData()
@@ -50,79 +50,52 @@ const SessionManagement = () => {
   const loadData = async () => {
     try {
       setLoading(true)
+      const [sessionsData, recordingsData, coursesData] = await Promise.all([
+        sessionService.getAllSessions().catch(error => {
+          console.error('Error loading sessions:', error)
+          return []
+        }),
+        recordingService.getAllRecordings().catch(error => {
+          console.error('Error loading recordings:', error)
+          return []
+        }),
+        courseService.getAllCourses().catch(error => {
+          console.error('Error loading courses:', error)
+          return []
+        })
+      ])
       
-      // Get current user info
-      const user = await authService.getCurrentUser()
-      setCurrentUser(user)
-      setUserRole(user?.role || '')
+      console.log('Loaded sessions from sessions collection:', sessionsData.length)
+      console.log('Loaded recordings from recordings collection:', recordingsData.length)
       
-      // Load data based on user role
-      if (user?.role === 'admin') {
-        const [sessionsData, recordingsData, coursesData, teachersData] = await Promise.all([
-          sessionService.getAllSessions().catch(error => {
-            console.error('Error loading sessions:', error)
-            return []
-          }),
-          recordingService.getAllRecordings().catch(error => {
-            console.error('Error loading recordings:', error)
-            return []
-          }),
-          courseService.getAllCourses().catch(error => {
-            console.error('Error loading courses:', error)
-            return []
-          }),
-          userService.getUsersByRole('teacher').catch(error => {
-            console.error('Error loading teachers:', error)
-            return []
-          })
-        ])
-        
-        setSessions(sessionsData)
-        setRecordings(recordingsData)
-        setCourses(coursesData)
-        setTeachers(teachersData)
-        
-      } else if (user?.role === 'teacher') {
-        const [sessionsData, recordingsData, coursesData] = await Promise.all([
-          sessionService.getSessionsByTeacher(user.uid).catch(error => {
-            console.error('Error loading sessions:', error)
-            return []
-          }),
-          recordingService.getRecordingsByTeacher(user.uid).catch(error => {
-            console.error('Error loading recordings:', error)
-            return []
-          }),
-          courseService.getCoursesByTeacher(user.uid).catch(error => {
-            console.error('Error loading courses:', error)
-            return []
-          })
-        ])
-        
-        setSessions(sessionsData)
-        setRecordings(recordingsData)
-        setCourses(coursesData)
-        
-      } else if (user?.role === 'student') {
-        const [sessionsData, recordingsData, coursesData] = await Promise.all([
-          sessionService.getPublishedSessions().catch(error => {
-            console.error('Error loading sessions:', error)
-            return []
-          }),
-          recordingService.getPublishedRecordings().catch(error => {
-            console.error('Error loading recordings:', error)
-            return []
-          }),
-          courseService.getAllCourses().catch(error => {
-            console.error('Error loading courses:', error)
-            return []
-          })
-        ])
-        
-        setSessions(sessionsData)
-        setRecordings(recordingsData)
-        setCourses(coursesData)
-      }
+      // Mark sessions from sessions collection
+      const sessionsFromSessionsCollection = sessionsData.map(session => ({
+        ...session,
+        collection: 'sessions',
+        isFromRecordingsCollection: false
+      }))
       
+      // Find sessions that were created in recordings collection
+      const sessionsFromRecordingsCollection = recordingsData
+        .filter(recording => recording.meetLink || recording.status === 'scheduled' || recording.status === 'live')
+        .map(session => ({
+          ...session,
+          collection: 'recordings',
+          isFromRecordingsCollection: true
+        }))
+      
+      // Filter out actual recordings (without meet links)
+      const actualRecordings = recordingsData.filter(recording => 
+        !recording.meetLink && (recording.status === 'completed' || recording.status === 'recorded')
+      ).map(recording => ({
+        ...recording,
+        collection: 'recordings',
+        isFromRecordingsCollection: false
+      }))
+      
+      setSessions([...sessionsFromSessionsCollection, ...sessionsFromRecordingsCollection])
+      setRecordings(actualRecordings)
+      setCourses(coursesData)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -130,26 +103,9 @@ const SessionManagement = () => {
     }
   }
 
-  const handleSessionCreated = () => {
-    setShowCreateSessionModal(false)
-    setSelectedItem(null)
-    loadData()
-  }
-
-  const handleRecordingCreated = () => {
-    setShowCreateRecordingModal(false)
-    setSelectedItem(null)
-    loadData()
-  }
-
-  const handleEditSession = (session) => {
-    setSelectedItem(session)
-    setShowCreateSessionModal(true)
-  }
-
-  const handleEditRecording = (recording) => {
-    setSelectedItem(recording)
-    setShowCreateRecordingModal(true)
+  // Helper function to determine if an item is a session in recordings collection
+  const isSessionFromRecordingsCollection = (item) => {
+    return item.collection === 'recordings' && item.meetLink
   }
 
   const handleJoinSession = (session) => {
@@ -158,19 +114,36 @@ const SessionManagement = () => {
     }
   }
 
-  const handleAddRecording = async (sessionId) => {
+  const handleAddRecording = async (sessionId, isFromRecordingsCollection = false) => {
     const recordingUrl = prompt('Enter Google Drive recording URL:')
     if (recordingUrl) {
       try {
         setActionLoading(prev => ({ ...prev, [sessionId]: true }))
         
-        const session = sessions.find(s => s.id === sessionId)
+        // Find the session
+        let session
+        if (isFromRecordingsCollection) {
+          session = recordings.find(r => r.id === sessionId && r.meetLink)
+        } else {
+          session = sessions.find(s => s.id === sessionId)
+        }
+        
         if (!session) {
           throw new Error('Session not found')
         }
 
-        // Update session in sessions collection
-        await sessionService.markAsRecorded(sessionId, recordingUrl)
+        if (isFromRecordingsCollection) {
+          // Update recording in recordings collection
+          await recordingService.updateRecording(sessionId, {
+            recordingUrl: recordingUrl,
+            isRecorded: true,
+            recordingStatus: 'available',
+            status: 'completed'
+          })
+        } else {
+          // Update session in sessions collection
+          await sessionService.markAsRecorded(sessionId, recordingUrl)
+        }
         
         // Also create a recording entry
         await recordingService.createRecording({
@@ -188,7 +161,7 @@ const SessionManagement = () => {
           category: session.category || 'general',
           status: 'recorded',
           recordingStatus: 'available',
-          isPublished: session.isPublished || false
+          isPublished: true
         })
 
         await loadData()
@@ -201,11 +174,17 @@ const SessionManagement = () => {
     }
   }
 
-  const handleDeleteSession = async (sessionId) => {
+  const handleDeleteSession = async (sessionId, isFromRecordingsCollection = false) => {
     if (window.confirm('Are you sure you want to delete this session?')) {
       try {
         setActionLoading(prev => ({ ...prev, [sessionId]: true }))
-        await sessionService.deleteSession(sessionId)
+        
+        if (isFromRecordingsCollection) {
+          await recordingService.deleteRecording(sessionId)
+        } else {
+          await sessionService.deleteSession(sessionId)
+        }
+        
         await loadData()
       } catch (error) {
         console.error('Error deleting session:', error)
@@ -231,10 +210,46 @@ const SessionManagement = () => {
     }
   }
 
-  const handleStartSession = async (sessionId) => {
+  const handleSessionCreated = () => {
+    setShowCreateSessionModal(false)
+    loadData()
+  }
+
+  const handleRecordingCreated = () => {
+    setShowCreateRecordingModal(false)
+    loadData()
+  }
+
+  const handleEditSession = (session) => {
+    setSelectedItem(session)
+    setShowCreateSessionModal(true)
+  }
+
+  const handleEditRecording = (recording) => {
+    setSelectedItem(recording)
+    setShowCreateRecordingModal(true)
+  }
+
+  const handleStartSession = async (sessionId, isFromRecordingsCollection = false) => {
     try {
       setActionLoading(prev => ({ ...prev, [sessionId]: true }))
-      await sessionService.updateSessionStatus(sessionId, 'live')
+      
+      if (isFromRecordingsCollection) {
+        await recordingService.updateRecording(sessionId, { status: 'live' })
+      } else {
+        const session = await sessionService.getSessionById(sessionId)
+        if (!session) {
+          const recordingAsSession = await recordingService.getRecordingById(sessionId)
+          if (recordingAsSession && recordingAsSession.meetLink) {
+            await recordingService.updateRecording(sessionId, { status: 'live' })
+          } else {
+            throw new Error('Session not found in any collection')
+          }
+        } else {
+          await sessionService.updateSessionStatus(sessionId, 'live')
+        }
+      }
+      
       await loadData()
     } catch (error) {
       console.error('Error starting session:', error)
@@ -244,10 +259,26 @@ const SessionManagement = () => {
     }
   }
 
-  const handleEndSession = async (sessionId) => {
+  const handleEndSession = async (sessionId, isFromRecordingsCollection = false) => {
     try {
       setActionLoading(prev => ({ ...prev, [sessionId]: true }))
-      await sessionService.updateSessionStatus(sessionId, 'completed')
+      
+      if (isFromRecordingsCollection) {
+        await recordingService.updateRecording(sessionId, { status: 'completed' })
+      } else {
+        const session = await sessionService.getSessionById(sessionId)
+        if (!session) {
+          const recordingAsSession = await recordingService.getRecordingById(sessionId)
+          if (recordingAsSession && recordingAsSession.meetLink) {
+            await recordingService.updateRecording(sessionId, { status: 'completed' })
+          } else {
+            throw new Error('Session not found in any collection')
+          }
+        } else {
+          await sessionService.updateSessionStatus(sessionId, 'completed')
+        }
+      }
+      
       await loadData()
     } catch (error) {
       console.error('Error ending session:', error)
@@ -257,10 +288,30 @@ const SessionManagement = () => {
     }
   }
 
-  const handlePublishSession = async (sessionId) => {
+  const handlePublishSession = async (sessionId, isFromRecordingsCollection = false) => {
     try {
       setActionLoading(prev => ({ ...prev, [sessionId]: true }))
-      await sessionService.updateSession(sessionId, { isPublished: true })
+      
+      if (isFromRecordingsCollection) {
+        // Session is in recordings collection
+        await recordingService.updateRecording(sessionId, { isPublished: true })
+      } else {
+        // Session is in sessions collection - first check if it exists
+        const session = await sessionService.getSessionById(sessionId)
+        if (!session) {
+          // If not found in sessions, check if it's in recordings
+          const recordingAsSession = await recordingService.getRecordingById(sessionId)
+          if (recordingAsSession && recordingAsSession.meetLink) {
+            // It's a session in recordings collection
+            await recordingService.updateRecording(sessionId, { isPublished: true })
+          } else {
+            throw new Error('Session not found in any collection')
+          }
+        } else {
+          await sessionService.updateSession(sessionId, { isPublished: true })
+        }
+      }
+      
       await loadData()
     } catch (error) {
       console.error('Error publishing session:', error)
@@ -270,10 +321,26 @@ const SessionManagement = () => {
     }
   }
 
-  const handleUnpublishSession = async (sessionId) => {
+  const handleUnpublishSession = async (sessionId, isFromRecordingsCollection = false) => {
     try {
       setActionLoading(prev => ({ ...prev, [sessionId]: true }))
-      await sessionService.updateSession(sessionId, { isPublished: false })
+      
+      if (isFromRecordingsCollection) {
+        await recordingService.updateRecording(sessionId, { isPublished: false })
+      } else {
+        const session = await sessionService.getSessionById(sessionId)
+        if (!session) {
+          const recordingAsSession = await recordingService.getRecordingById(sessionId)
+          if (recordingAsSession && recordingAsSession.meetLink) {
+            await recordingService.updateRecording(sessionId, { isPublished: false })
+          } else {
+            throw new Error('Session not found in any collection')
+          }
+        } else {
+          await sessionService.updateSession(sessionId, { isPublished: false })
+        }
+      }
+      
       await loadData()
     } catch (error) {
       console.error('Error unpublishing session:', error)
@@ -283,41 +350,52 @@ const SessionManagement = () => {
     }
   }
 
-  const handlePublishRecording = async (recordingId) => {
+  // Migrate session from recordings to sessions collection
+  const migrateSessionToProperCollection = async (sessionId) => {
     try {
-      setActionLoading(prev => ({ ...prev, [recordingId]: true }))
-      await recordingService.updateRecording(recordingId, { isPublished: true })
+      setActionLoading(prev => ({ ...prev, [sessionId]: true }))
+      
+      // Get the session from recordings collection
+      const recordingSession = await recordingService.getRecordingById(sessionId)
+      if (!recordingSession || !recordingSession.meetLink) {
+        throw new Error('Session not found in recordings collection')
+      }
+      
+      // Create session in sessions collection
+      const newSession = await sessionService.createSession({
+        meetLink: recordingSession.meetLink,
+        title: recordingSession.title,
+        description: recordingSession.description,
+        scheduledTime: recordingSession.scheduledTime,
+        duration: recordingSession.duration,
+        category: recordingSession.category,
+        visibility: recordingSession.visibility,
+        maxParticipants: recordingSession.maxParticipants,
+        courseId: recordingSession.courseId,
+        enableRecording: recordingSession.enableRecording,
+        status: recordingSession.status,
+        recordingStatus: recordingSession.recordingStatus,
+        isPublished: recordingSession.isPublished,
+        instructorId: recordingSession.instructorId,
+        instructorEmail: recordingSession.instructorEmail,
+        instructorName: recordingSession.instructorName,
+        createdBy: recordingSession.createdBy
+      })
+      
+      // Optionally delete from recordings collection
+      // await recordingService.deleteRecording(sessionId)
+      
+      console.log('Session migrated successfully:', newSession)
       await loadData()
+      
     } catch (error) {
-      console.error('Error publishing recording:', error)
-      alert('Failed to publish recording: ' + error.message)
+      console.error('Error migrating session:', error)
+      alert('Failed to migrate session: ' + error.message)
     } finally {
-      setActionLoading(prev => ({ ...prev, [recordingId]: false }))
+      setActionLoading(prev => ({ ...prev, [sessionId]: false }))
     }
   }
 
-  const handleUnpublishRecording = async (recordingId) => {
-    try {
-      setActionLoading(prev => ({ ...prev, [recordingId]: true }))
-      await recordingService.updateRecording(recordingId, { isPublished: false })
-      await loadData()
-    } catch (error) {
-      console.error('Error unpublishing recording:', error)
-      alert('Failed to unpublish recording: ' + error.message)
-    } finally {
-      setActionLoading(prev => ({ ...prev, [recordingId]: false }))
-    }
-  }
-
-  const getAvailableTeachers = () => {
-    return teachers
-  }
-
-  const getAvailableCourses = () => {
-    return courses
-  }
-
-  // Filter data based on user role and search criteria
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = 
       session.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -378,26 +456,6 @@ const SessionManagement = () => {
     return item.meetLink ? 'session' : 'recording'
   }
 
-  // Check if user can modify the item
-  const canModifyItem = (item) => {
-    if (userRole === 'admin') return true
-    if (userRole === 'teacher') {
-      return item.instructorId === currentUser?.uid
-    }
-    return false
-  }
-
-  const getCourseName = (courseId) => {
-    const course = courses.find(c => c.id === courseId)
-    return course ? course.name : 'Unknown Course'
-  }
-
-  const getTeacherName = (teacherId) => {
-    if (!teachers || userRole !== 'admin') return 'Unknown Teacher'
-    const teacher = teachers.find(t => t.id === teacherId)
-    return teacher ? teacher.displayName : 'Unknown Teacher'
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -407,99 +465,77 @@ const SessionManagement = () => {
   }
 
   const displayData = getDisplayData()
+  const sessionsFromRecordings = sessions.filter(s => s.collection === 'recordings')
+  const sessionsFromSessions = sessions.filter(s => s.collection === 'sessions')
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            {userRole === 'admin' && 'Session & Recording Management'}
-            {userRole === 'teacher' && 'My Sessions & Recordings'}
-            {userRole === 'student' && 'Available Sessions & Recordings'}
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Session & Recording Management</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {userRole === 'admin' && 'Manage all sessions and recordings across the platform'}
-            {userRole === 'teacher' && 'Manage your teaching sessions and recordings'}
-            {userRole === 'student' && 'View available sessions and recordings'}
+            Manage Google Meet sessions and recordings
           </p>
         </div>
-        
-        {/* Action Buttons based on role */}
         <div className="flex space-x-3">
-          {(userRole === 'admin' || userRole === 'teacher') && (
-            <>
-              {userRole === 'admin' && (
-                <Button 
-                  onClick={() => {
-                    setSelectedItem(null)
-                    setShowCreateRecordingModal(true)
-                  }}
-                  variant="outline"
-                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Add Recording
-                </Button>
-              )}
-              <Button 
-                onClick={() => {
-                  setSelectedItem(null)
-                  setShowCreateSessionModal(true)
-                }}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Schedule Session
-              </Button>
-            </>
-          )}
+          <Button 
+            onClick={() => {
+              setSelectedItem(null)
+              setShowCreateRecordingModal(true)
+            }}
+            variant="outline"
+            className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Add Recording
+          </Button>
+          <Button 
+            onClick={() => {
+              setSelectedItem(null)
+              setShowCreateSessionModal(true)
+            }}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Session
+          </Button>
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-blue-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {userRole === 'student' ? 'Available Sessions' : 'Total Sessions'}
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{sessions.length}</p>
+      {/* Collection Status */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sessionsFromSessions.length}</div>
+              <div className="text-sm text-blue-700 dark:text-blue-300">Sessions in Sessions Collection</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{sessionsFromRecordings.length}</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300">Sessions in Recordings Collection</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{recordings.length}</div>
+              <div className="text-sm text-purple-700 dark:text-purple-300">Standalone Recordings</div>
             </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <Video className="h-8 w-8 text-purple-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {userRole === 'student' ? 'Available Recordings' : 'Total Recordings'}
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{recordings.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <BookOpen className="h-8 w-8 text-green-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Courses</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{courses.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <BarChart3 className="h-8 w-8 text-orange-500 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Live Sessions</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {sessions.filter(s => s.status === 'live').length}
-              </p>
-            </div>
-          </div>
+          {sessionsFromRecordings.length > 0 && (
+            <Button 
+              onClick={() => {
+                if (window.confirm(`Migrate ${sessionsFromRecordings.length} sessions from recordings to sessions collection?`)) {
+                  sessionsFromRecordings.forEach(session => {
+                    migrateSessionToProperCollection(session.id)
+                  })
+                }
+              }}
+              variant="outline"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Migrate All Sessions
+            </Button>
+          )}
         </div>
       </div>
 
@@ -511,11 +547,7 @@ const SessionManagement = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={
-                  userRole === 'student' 
-                    ? "Search available sessions and recordings..." 
-                    : "Search sessions and recordings..."
-                }
+                placeholder="Search sessions and recordings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -542,6 +574,7 @@ const SessionManagement = () => {
               <option value="live">Live</option>
               <option value="completed">Completed</option>
               <option value="recorded">Recorded</option>
+              <option value="available">Available</option>
             </select>
           </div>
         </div>
@@ -558,7 +591,7 @@ const SessionManagement = () => {
           const isUpcoming = item.status === 'scheduled'
           const hasRecording = item.recordingUrl || item.isRecorded
           const isPublished = item.isPublished
-          const canModify = canModifyItem(item)
+          const isFromRecordingsCollection = isSessionFromRecordingsCollection(item)
 
           return (
             <div
@@ -579,9 +612,14 @@ const SessionManagement = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
                         {isSession ? 'Session' : 'Recording'} • {item.status}
                       </span>
-                      {!isPublished && userRole !== 'student' && (
+                      {!isPublished && (
                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                           Draft
+                        </span>
+                      )}
+                      {isSession && isFromRecordingsCollection && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                          From Recordings
                         </span>
                       )}
                     </div>
@@ -596,8 +634,8 @@ const SessionManagement = () => {
 
                 <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                   <span className="flex items-center">
-                    <User className="h-4 w-4 mr-1" />
-                    {item.instructorName || 'Unknown Instructor'}
+                    <Users className="h-4 w-4 mr-1" />
+                    {item.instructorName || 'Unknown'}
                   </span>
                   {item.scheduledTime && (
                     <span className="flex items-center">
@@ -630,22 +668,6 @@ const SessionManagement = () => {
                   )}
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Course</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {getCourseName(item.courseId)}
-                    </span>
-                  </div>
-
-                  {userRole === 'admin' && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Teacher</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {getTeacherName(item.instructorId)}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Recording</span>
                     <span className={`text-sm font-medium ${
                       hasRecording 
@@ -659,183 +681,133 @@ const SessionManagement = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 mt-6">
-                  {/* Student/Viewer Actions */}
-                  {(userRole === 'student' || !canModify) && (
-                    <>
-                      {isSession && isLive && (
-                        <Button
-                          onClick={() => handleJoinSession(item)}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          <PlayCircle className="h-4 w-4 mr-2" />
-                          Join Live
-                        </Button>
-                      )}
-                      
-                      {isSession && isUpcoming && (
-                        <Button
-                          onClick={() => handleJoinSession(item)}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Join Session
-                        </Button>
-                      )}
+                  {isSession && isLive && (
+                    <Button
+                      onClick={() => handleJoinSession(item)}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                      Join Live
+                    </Button>
+                  )}
+                  
+                  {isSession && isUpcoming && (
+                    <Button
+                      onClick={() => handleJoinSession(item)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Join
+                    </Button>
+                  )}
 
-                      {hasRecording && (
-                        <a
-                          href={item.recordingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1"
+                  {isSession && !hasRecording && item.status === 'completed' && (
+                    <Button
+                      onClick={() => handleAddRecording(item.id, isFromRecordingsCollection)}
+                      disabled={actionLoading[item.id]}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                    >
+                      {actionLoading[item.id] ? (
+                        <LoadingSpinner size="sm" className="mr-2" />
+                      ) : (
+                        <Video className="h-4 w-4 mr-2" />
+                      )}
+                      Add Recording
+                    </Button>
+                  )}
+
+                  {hasRecording && (
+                    <a
+                      href={item.recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1"
+                    >
+                      <Button variant="outline" className="w-full">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Recording
+                      </Button>
+                    </a>
+                  )}
+
+                  {/* Session Controls */}
+                  {isSession && (
+                    <>
+                      {isUpcoming && (
+                        <Button
+                          onClick={() => handleStartSession(item.id, isFromRecordingsCollection)}
+                          variant="outline"
+                          size="sm"
                         >
-                          <Button variant="outline" className="w-full">
-                            <Eye className="h-4 w-4 mr-2" />
-                            {isSession ? 'View Recording' : 'Watch Recording'}
-                          </Button>
-                        </a>
+                          Start
+                        </Button>
+                      )}
+                      {isLive && (
+                        <Button
+                          onClick={() => handleEndSession(item.id, isFromRecordingsCollection)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          End
+                        </Button>
+                      )}
+                      {!isPublished ? (
+                        <Button
+                          onClick={() => handlePublishSession(item.id, isFromRecordingsCollection)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Publish
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => handleUnpublishSession(item.id, isFromRecordingsCollection)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Unpublish
+                        </Button>
                       )}
                     </>
                   )}
 
-                  {/* Admin/Teacher Management Actions */}
-                  {canModify && (
-                    <>
-                      {isSession && isLive && (
-                        <Button
-                          onClick={() => handleJoinSession(item)}
-                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          <PlayCircle className="h-4 w-4 mr-2" />
-                          Join Live
-                        </Button>
+                  {/* Migrate Button for sessions in recordings collection */}
+                  {isSession && isFromRecordingsCollection && (
+                    <Button
+                      onClick={() => migrateSessionToProperCollection(item.id)}
+                      disabled={actionLoading[item.id]}
+                      variant="outline"
+                      size="sm"
+                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    >
+                      {actionLoading[item.id] ? (
+                        <LoadingSpinner size="sm" className="mr-1" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-1" />
                       )}
-                      
-                      {isSession && isUpcoming && (
-                        <Button
-                          onClick={() => handleJoinSession(item)}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Join
-                        </Button>
-                      )}
-
-                      {isSession && !hasRecording && item.status === 'completed' && (
-                        <Button
-                          onClick={() => handleAddRecording(item.id)}
-                          disabled={actionLoading[item.id]}
-                          className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                        >
-                          {actionLoading[item.id] ? (
-                            <LoadingSpinner size="sm" className="mr-2" />
-                          ) : (
-                            <Video className="h-4 w-4 mr-2" />
-                          )}
-                          Add Recording
-                        </Button>
-                      )}
-
-                      {hasRecording && (
-                        <a
-                          href={item.recordingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1"
-                        >
-                          <Button variant="outline" className="w-full">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Recording
-                          </Button>
-                        </a>
-                      )}
-
-                      {/* Session Controls */}
-                      {isSession && (
-                        <>
-                          {isUpcoming && (
-                            <Button
-                              onClick={() => handleStartSession(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              Start
-                            </Button>
-                          )}
-                          {isLive && (
-                            <Button
-                              onClick={() => handleEndSession(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              End
-                            </Button>
-                          )}
-                          {!isPublished ? (
-                            <Button
-                              onClick={() => handlePublishSession(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              Publish
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => handleUnpublishSession(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              Unpublish
-                            </Button>
-                          )}
-                        </>
-                      )}
-
-                      {/* Recording Controls */}
-                      {isRecording && (
-                        <>
-                          {!isPublished ? (
-                            <Button
-                              onClick={() => handlePublishRecording(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              Publish
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => handleUnpublishRecording(item.id)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              Unpublish
-                            </Button>
-                          )}
-                        </>
-                      )}
-
-                      {/* Edit Button */}
-                      <Button
-                        onClick={() => isSession ? handleEditSession(item) : handleEditRecording(item)}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-
-                      {/* Delete Button */}
-                      <Button
-                        onClick={() => isSession ? handleDeleteSession(item.id) : handleDeleteRecording(item.id)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
+                      Migrate
+                    </Button>
                   )}
+
+                  {/* Edit Button */}
+                  <Button
+                    onClick={() => isSession ? handleEditSession(item) : handleEditRecording(item)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+
+                  {/* Delete Button */}
+                  <Button
+                    onClick={() => isSession ? handleDeleteSession(item.id, isFromRecordingsCollection) : handleDeleteRecording(item.id)}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -852,32 +824,26 @@ const SessionManagement = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
               ? 'Try adjusting your search or filters'
-              : userRole === 'student' 
-                ? 'No published sessions or recordings available yet'
-                : 'Get started by scheduling your first session or adding a recording'
+              : 'Get started by scheduling your first session or adding a recording'
             }
           </p>
-          {(userRole === 'admin' || userRole === 'teacher') && (
-            <div className="flex justify-center space-x-3">
-              {userRole === 'admin' && (
-                <Button 
-                  onClick={() => setShowCreateRecordingModal(true)}
-                  variant="outline"
-                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Add Recording
-                </Button>
-              )}
-              <Button 
-                onClick={() => setShowCreateSessionModal(true)}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Schedule Session
-              </Button>
-            </div>
-          )}
+          <div className="flex justify-center space-x-3">
+            <Button 
+              onClick={() => setShowCreateRecordingModal(true)}
+              variant="outline"
+              className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Add Recording
+            </Button>
+            <Button 
+              onClick={() => setShowCreateSessionModal(true)}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Schedule Session
+            </Button>
+          </div>
         </div>
       )}
 
@@ -887,10 +853,6 @@ const SessionManagement = () => {
           onClose={() => setShowCreateSessionModal(false)}
           onSuccess={handleSessionCreated}
           session={selectedItem}
-          courses={getAvailableCourses()}
-          teachers={getAvailableTeachers()}
-          currentTeacher={currentUser}
-          isAdmin={userRole === 'admin'}
         />
       )}
 
@@ -900,10 +862,6 @@ const SessionManagement = () => {
           onClose={() => setShowCreateRecordingModal(false)}
           onSuccess={handleRecordingCreated}
           recording={selectedItem}
-          courses={getAvailableCourses()}
-          teachers={getAvailableTeachers()}
-          currentTeacher={currentUser}
-          isAdmin={userRole === 'admin'}
         />
       )}
     </div>
