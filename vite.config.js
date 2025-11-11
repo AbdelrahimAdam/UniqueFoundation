@@ -50,7 +50,7 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     terserOptions: {
-      compress: { 
+      compress: {
         drop_console: true,
         drop_debugger: true
       },
@@ -66,8 +66,8 @@ export default defineConfig({
     },
   },
 
-  // Remove base URL completely for Vercel
-  base: '',
-  
+  // ✅ Use absolute path for all assets (fixes /teacher/... 404 errors)
+  base: '/',
+
   publicDir: 'public',
 })
