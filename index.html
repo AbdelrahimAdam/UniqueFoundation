@@ -20,9 +20,9 @@
   <meta property="og:url" content="https://uniquefoundation.com/" />
   <meta property="og:title" content="Unique Foundation - Professional Google Meet Recording & Education Platform" />
   <meta property="og:description" content="Record Google Meet classes with advanced features. Secure storage, AI analytics, and seamless sharing for educators and students." />
-  <meta property="og:image" content="https://uniquefoundation.com/og-image.jpg" />
+  <meta property="og:image" content="/icon-512x512.png" />
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:image" content="https://uniquefoundation.com/twitter-image.jpg" />
+  <meta property="twitter:image" content="/icon-512x512.png" />
 
   <!-- Preload Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,14 +89,11 @@
     if('serviceWorker' in navigator){
       window.addEventListener('load', async ()=>{
         try {
-          const response = await fetch('/sw.js',{method:'HEAD'});
-          if(response.ok){
-            const reg = await navigator.serviceWorker.register('/sw.js');
-            console.log('✅ Service Worker registered:', reg);
-          } else {
-            console.warn('⚠️ sw.js not found, skipping registration.');
-          }
-        } catch(e){ console.error('SW registration failed:', e); }
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          console.log('✅ Service Worker registered:', reg);
+        } catch(e){ 
+          console.error('SW registration failed:', e); 
+        }
       });
     }
   </script>
