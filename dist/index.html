@@ -24,7 +24,7 @@
   <meta property="twitter:card" content="summary_large_image" />
   <meta property="twitter:image" content="https://uniquefoundation.com/twitter-image.jpg" />
 
-  <!-- Preload and async-load Google Fonts -->
+  <!-- Preload Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" onload="this.rel='stylesheet'">
@@ -32,7 +32,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </noscript>
 
-  <!-- Critical CSS for loading screen -->
+  <!-- Critical CSS for Loading Screen -->
   <style>
     .loading-screen {
       position: fixed; top:0; left:0;
@@ -53,7 +53,7 @@
     [data-loading]{opacity:0;}
     [data-loaded]{opacity:1;}
   </style>
-  <script type="module" crossorigin src="/assets/index-c63f14c2.js"></script>
+  <script type="module" crossorigin src="/assets/index-4237eef3.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/vendor-c3615fdd.js">
   <link rel="modulepreload" crossorigin href="/assets/router-4adec120.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-9a5fb30d.js">
@@ -74,7 +74,7 @@
   <!-- React Mount -->
   <div id="root"></div>
 
-  <!-- Main React Entry (Vite dev: /src/main.jsx) -->
+  <!-- Main React Entry -->
   
 
   <!-- Remove loading screen after load -->
@@ -107,14 +107,14 @@
     }
   </script>
 
-  <!-- 📲 Auto Install Prompt -->
+  <!-- Install Prompt for PWA -->
   <script>
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
 
-      // Create a floating install button
+      // Create floating install button
       const btn = document.createElement('button');
       btn.textContent = '📲 Install Unique Foundation';
       btn.style = `

@@ -22,7 +22,6 @@ const queryClient = new QueryClient({
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-// Mount the app correctly
 root.render(
   <BrowserRouter basename={import.meta.env.BASE_URL || "/"}>
     <QueryClientProvider client={queryClient}>
@@ -36,12 +35,55 @@ root.render(
   </BrowserRouter>
 );
 
-// Register SW in production
+// Service Worker registration + update handling
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then(reg => console.log("✅ SW registered:", reg))
-      .catch(err => console.warn("⚠️ SW registration failed:", err));
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      console.log("✅ SW registered:", registration);
+
+      // Listen for updates
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              console.log("🔄 New version available. Refresh to update.");
+              // Optional: auto reload
+              // window.location.reload();
+            }
+          });
+        }
+      });
+    } catch (err) {
+      console.warn("⚠️ SW registration failed:", err);
+    }
   });
 }
+
+// PWA install prompt handling
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // Auto-show a custom install button
+  const btn = document.createElement("button");
+  btn.textContent = "📲 Install Unique Foundation";
+  btn.style = `
+    position:fixed; bottom:20px; right:20px;
+    background:#667eea; color:white; border:none;
+    padding:12px 16px; border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+    cursor:pointer; z-index:10000; font-weight:600;
+  `;
+  document.body.appendChild(btn);
+
+  btn.addEventListener("click", async () => {
+    btn.remove();
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log("User response:", outcome);
+    deferredPrompt = null;
+  });
+});
