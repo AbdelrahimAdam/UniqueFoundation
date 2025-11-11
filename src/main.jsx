@@ -20,20 +20,98 @@ const queryClient = new QueryClient({
   },
 });
 
+// Add error boundary for better debugging
+const RootComponent = () => {
+  return (
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+        {import.meta.env.DEV && (
+          <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+        )}
+      </QueryClientProvider>
+    </BrowserRouter>
+  );
+};
+
+// Simple error boundary for debugging
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("React Error Boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+          <h1 style={{ color: '#e53e3e' }}>Something went wrong</h1>
+          <p>Error: {this.state.error?.message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Reload Page
+          </button>
+          <details style={{ marginTop: '20px', textAlign: 'left' }}>
+            <summary>Error Details</summary>
+            <pre style={{ background: '#f5f5f5', padding: '10px', borderRadius: '5px' }}>
+              {this.state.error?.stack}
+            </pre>
+          </details>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-root.render(
-  <BrowserRouter basename={import.meta.env.BASE_URL || "/"}>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-      {import.meta.env.DEV && (
-        <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
-      )}
-    </QueryClientProvider>
-  </BrowserRouter>
-);
+try {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <RootComponent />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+  console.log("✅ React app mounted successfully");
+} catch (error) {
+  console.error("❌ Failed to mount React app:", error);
+  // Fallback rendering
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    rootElement.innerHTML = `
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+        <h1 style="color: #e53e3e;">Failed to load application</h1>
+        <p>Please check the console for errors and refresh the page.</p>
+        <button onclick="window.location.reload()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+          Reload Page
+        </button>
+        <p><small>Error: ${error.message}</small></p>
+      </div>
+    `;
+  }
+}
 
 // Service Worker registration + update handling
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

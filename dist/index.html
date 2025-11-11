@@ -2,8 +2,8 @@
 <html lang="en" dir="ltr" class="h-full">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
   <link rel="manifest" href="./site.webmanifest" crossorigin="use-credentials">
@@ -20,9 +20,9 @@
   <meta property="og:url" content="https://uniquefoundation.com/" />
   <meta property="og:title" content="Unique Foundation - Professional Google Meet Recording & Education Platform" />
   <meta property="og:description" content="Record Google Meet classes with advanced features. Secure storage, AI analytics, and seamless sharing for educators and students." />
-  <meta property="og:image" content="https://uniquefoundation.com/og-image.jpg" />
+  <meta property="og:image" content="/icon-512x512.png" />
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:image" content="https://uniquefoundation.com/twitter-image.jpg" />
+  <meta property="twitter:image" content="/icon-512x512.png" />
 
   <!-- Preload Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,12 +53,11 @@
     [data-loading]{opacity:0;}
     [data-loaded]{opacity:1;}
   </style>
-  <script type="module" crossorigin src="./js/index-b7c13edd.js"></script>
-  <link rel="modulepreload" crossorigin href="./js/vendor-0a74ad82.js">
-  <link rel="modulepreload" crossorigin href="./js/router-80e9042b.js">
-  <link rel="modulepreload" crossorigin href="./js/firebase-d00d8d06.js">
-  <link rel="modulepreload" crossorigin href="./js/utils-a27d9a93.js">
-  <link rel="stylesheet" href="./assets/index-10a57263.css">
+  <script type="module" crossorigin src="./assets/index-5767ddf8.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/vendor-0a74ad82.js">
+  <link rel="modulepreload" crossorigin href="./assets/router-80e9042b.js">
+  <link rel="modulepreload" crossorigin href="./assets/firebase-383b8577.js">
+  <link rel="stylesheet" href="./assets/index-ba9c0e5e.css">
 <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
 
 <body class="h-full antialiased bg-gray-50 dark:bg-gray-900" data-loading>
@@ -95,14 +94,11 @@
     if('serviceWorker' in navigator){
       window.addEventListener('load', async ()=>{
         try {
-          const response = await fetch('/sw.js',{method:'HEAD'});
-          if(response.ok){
-            const reg = await navigator.serviceWorker.register('/sw.js');
-            console.log('✅ Service Worker registered:', reg);
-          } else {
-            console.warn('⚠️ sw.js not found, skipping registration.');
-          }
-        } catch(e){ console.error('SW registration failed:', e); }
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          console.log('✅ Service Worker registered:', reg);
+        } catch(e){ 
+          console.error('SW registration failed:', e); 
+        }
       });
     }
   </script>
