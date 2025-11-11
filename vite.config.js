@@ -73,7 +73,6 @@ export default defineConfig({
   },
 
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
     'process.env': {},
     global: 'globalThis',
   },
@@ -85,11 +84,14 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    target: 'es2017',
+    target: 'esnext',
     sourcemap: false,
     minify: 'terser',
     terserOptions: {
-      compress: { drop_console: true },
+      compress: { 
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: true
+      },
     },
     rollupOptions: {
       output: {
@@ -106,13 +108,20 @@ export default defineConfig({
           if (/woff2?|eot|ttf|otf/i.test(extType)) return 'assets/fonts/[name]-[hash][extname]'
           return 'assets/[name]-[hash][extname]'
         },
+        chunkFileNames: 'js/[name]-[hash].js',
+        entryFileNames: 'js/[name]-[hash].js',
       },
     },
+    chunkSizeWarningLimit: 1000,
   },
 
   optimizeDeps: {
-    include: ['react', 'react-dom', 'firebase/app'],
+    include: ['react', 'react-dom', 'firebase/app', 'firebase/auth', 'firebase/firestore'],
+    exclude: ['vite-plugin-pwa']
   },
 
   publicDir: 'public',
+  
+  // Add base URL for Vercel deployment
+  base: './',
 })
