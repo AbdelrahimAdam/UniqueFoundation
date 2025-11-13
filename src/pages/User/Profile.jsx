@@ -31,7 +31,10 @@ import {
   Globe,
   Eye,
   EyeOff,
-  Key
+  Key,
+  CheckCircle,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
@@ -55,6 +58,7 @@ const Profile = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -67,6 +71,18 @@ const Profile = () => {
     subjects: '',
     qualifications: ''
   });
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Get user initials for avatar fallback
   const getUserInitials = () => {
@@ -258,7 +274,7 @@ const Profile = () => {
     }
   };
 
-  // NEW: Base64 image upload that works without CORS issues
+  // Base64 image upload that works without CORS issues
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -342,25 +358,29 @@ const Profile = () => {
             label: t('admin.totalUsers', 'Total Users'),
             value: stats.totalUsers || '0',
             icon: Users,
-            color: 'text-blue-600'
+            color: 'text-blue-600 dark:text-blue-400',
+            bgColor: 'bg-blue-100 dark:bg-blue-900/30'
           },
           {
             label: t('admin.activeCourses', 'Active Courses'),
             value: stats.activeCourses || '0',
             icon: BookOpen,
-            color: 'text-green-600'
+            color: 'text-green-600 dark:text-green-400',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
           },
           {
             label: t('admin.teachers', 'Teachers'),
             value: stats.teachers || '0',
             icon: UserCheck,
-            color: 'text-purple-600'
+            color: 'text-purple-600 dark:text-purple-400',
+            bgColor: 'bg-purple-100 dark:bg-purple-900/30'
           },
           {
             label: t('admin.systemHealth', 'System Health'),
             value: stats.systemHealth || '100%',
             icon: Settings,
-            color: 'text-green-600'
+            color: 'text-green-600 dark:text-green-400',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
           }
         ]
       },
@@ -373,25 +393,29 @@ const Profile = () => {
             label: t('teacher.totalCourses', 'Total Courses'),
             value: stats.totalCourses || '0',
             icon: BookOpen,
-            color: 'text-blue-600'
+            color: 'text-blue-600 dark:text-blue-400',
+            bgColor: 'bg-blue-100 dark:bg-blue-900/30'
           },
           {
             label: t('teacher.sessions', 'Sessions'),
             value: stats.sessions || '0',
             icon: Clock,
-            color: 'text-green-600'
+            color: 'text-green-600 dark:text-green-400',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
           },
           {
             label: t('teacher.students', 'Students'),
             value: stats.students || '0',
             icon: Users,
-            color: 'text-purple-600'
+            color: 'text-purple-600 dark:text-purple-400',
+            bgColor: 'bg-purple-100 dark:bg-purple-900/30'
           },
           {
             label: t('teacher.rating', 'Rating'),
             value: stats.rating || '0/5',
             icon: Award,
-            color: 'text-yellow-600'
+            color: 'text-yellow-600 dark:text-yellow-400',
+            bgColor: 'bg-yellow-100 dark:bg-yellow-900/30'
           }
         ]
       },
@@ -404,25 +428,29 @@ const Profile = () => {
             label: t('student.enrolledCourses', 'Enrolled Courses'),
             value: stats.enrolledCourses || '0',
             icon: BookOpen,
-            color: 'text-blue-600'
+            color: 'text-blue-600 dark:text-blue-400',
+            bgColor: 'bg-blue-100 dark:bg-blue-900/30'
           },
           {
             label: t('student.completedLessons', 'Completed Lessons'),
             value: stats.completedLessons || '0',
             icon: Award,
-            color: 'text-green-600'
+            color: 'text-green-600 dark:text-green-400',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
           },
           {
             label: t('student.upcomingSessions', 'Upcoming Sessions'),
             value: stats.upcomingSessions || '0',
             icon: Clock,
-            color: 'text-purple-600'
+            color: 'text-purple-600 dark:text-purple-400',
+            bgColor: 'bg-purple-100 dark:bg-purple-900/30'
           },
           {
             label: t('student.progress', 'Overall Progress'),
             value: stats.progress || '0%',
             icon: TrendingUp,
-            color: 'text-green-600'
+            color: 'text-green-600 dark:text-green-400',
+            bgColor: 'bg-green-100 dark:bg-green-900/30'
           }
         ]
       }
@@ -436,18 +464,19 @@ const Profile = () => {
 
   const renderProfileTab = () => (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             {t('profile.personalInfo', 'Personal Information')}
           </h2>
           {!isEditing && (
-            <Button
-              variant="outline"
+            <button
               onClick={() => setIsEditing(true)}
+              className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation"
             >
+              <User className="h-4 w-4 mr-2" />
               {t('profile.edit', 'Edit Profile')}
-            </Button>
+            </button>
           )}
         </div>
 
@@ -564,17 +593,20 @@ const Profile = () => {
           </div>
 
           {isEditing && (
-            <div className="flex space-x-4 pt-4">
-              <Button
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
+              <button
                 onClick={handleSaveProfile}
-                loading={isLoading}
-                className="flex items-center"
+                disabled={isLoading}
+                className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation disabled:opacity-50"
               >
-                <Save size={18} className="mr-2" />
+                {isLoading ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
                 {t('profile.save', 'Save Changes')}
-              </Button>
-              <Button
-                variant="outline"
+              </button>
+              <button
                 onClick={() => {
                   setIsEditing(false);
                   setFormData({
@@ -589,9 +621,11 @@ const Profile = () => {
                     qualifications: userProfile?.qualifications || ''
                   });
                 }}
+                className="w-full sm:w-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation hover:bg-gray-50 dark:hover:bg-gray-600"
               >
+                <XCircle className="h-4 w-4 mr-2" />
                 {t('profile.cancel', 'Cancel')}
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -600,9 +634,9 @@ const Profile = () => {
   );
 
   const renderPasswordTab = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
           {t('profile.changePassword', 'Change Password')}
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -611,14 +645,16 @@ const Profile = () => {
       </div>
 
       {passwordError && (
-        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{passwordError}</p>
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start space-x-3">
+          <XCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-600 dark:text-red-400 flex-1">{passwordError}</p>
         </div>
       )}
 
       {passwordSuccess && (
-        <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>
+        <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-start space-x-3">
+          <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-green-600 dark:text-green-400 flex-1">{passwordSuccess}</p>
         </div>
       )}
 
@@ -634,7 +670,7 @@ const Profile = () => {
             <button
               type="button"
               onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
               {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -652,7 +688,7 @@ const Profile = () => {
             <button
               type="button"
               onClick={() => setShowNewPassword(!showNewPassword)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
               {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -670,7 +706,7 @@ const Profile = () => {
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
               {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -678,25 +714,42 @@ const Profile = () => {
         />
 
         <div className="pt-4">
-          <Button
+          <button
             onClick={handleChangePassword}
-            loading={changingPassword}
-            className="flex items-center"
+            disabled={changingPassword}
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation disabled:opacity-50"
           >
-            <Key size={18} className="mr-2" />
+            {changingPassword ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Key className="h-4 w-4 mr-2" />
+            )}
             {t('profile.updatePassword', 'Update Password')}
-          </Button>
+          </button>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2 flex items-center">
+            <Shield className="h-4 w-4 mr-2" />
             {t('profile.passwordTips', 'Password Tips')}
           </h3>
           <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
-            <li>• {t('profile.minLength', 'Use at least 6 characters')}</li>
-            <li>• {t('profile.includeNumbers', 'Include numbers and symbols')}</li>
-            <li>• {t('profile.avoidCommon', 'Avoid common words and patterns')}</li>
-            <li>• {t('profile.uniquePassword', 'Use a unique password for this account')}</li>
+            <li className="flex items-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+              {t('profile.minLength', 'Use at least 6 characters')}
+            </li>
+            <li className="flex items-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+              {t('profile.includeNumbers', 'Include numbers and symbols')}
+            </li>
+            <li className="flex items-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+              {t('profile.avoidCommon', 'Avoid common words and patterns')}
+            </li>
+            <li className="flex items-center">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
+              {t('profile.uniquePassword', 'Use a unique password for this account')}
+            </li>
           </ul>
         </div>
       </div>
@@ -704,42 +757,44 @@ const Profile = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               {t('profile.title', 'My Profile')}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
               {t('profile.description', 'Manage your profile and account settings')}
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${roleConfig.color}-100 text-${roleConfig.color}-800 dark:bg-${roleConfig.color}-900 dark:text-${roleConfig.color}-200`}>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${roleConfig.color}-100 text-${roleConfig.color}-800 dark:bg-${roleConfig.color}-900/30 dark:text-${roleConfig.color}-300`}>
               <RoleIcon className="w-4 h-4 mr-1" />
               {roleConfig.badge}
             </span>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Grid - Mobile responsive */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           {roleConfig.stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <div key={index} className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">
                       {stat.label}
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-2">
                       {stat.value}
                     </p>
                   </div>
-                  <Icon className={`w-8 h-8 ${stat.color}`} />
+                  <div className={`p-2 sm:p-3 rounded-lg ${stat.bgColor}`}>
+                    <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${stat.color}`} />
+                  </div>
                 </div>
               </div>
             );
@@ -748,10 +803,10 @@ const Profile = () => {
 
         {/* Tabs */}
         <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('profile')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'profile'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
@@ -761,7 +816,7 @@ const Profile = () => {
             </button>
             <button
               onClick={() => setActiveTab('password')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'password'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
@@ -776,7 +831,7 @@ const Profile = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Profile Picture and Details */}
         <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sticky top-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
             <div className="flex flex-col items-center">
               <div className="relative">
                 {/* Avatar with fallback */}
@@ -813,10 +868,10 @@ const Profile = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mt-4 text-center">
                 {userProfile?.firstName} {userProfile?.lastName}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-center">{user?.email}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center text-sm">{user?.email}</p>
               
               <div className="mt-4 text-center">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${roleConfig.color}-100 text-${roleConfig.color}-800 dark:bg-${roleConfig.color}-900 dark:text-${roleConfig.color}-200`}>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-${roleConfig.color}-100 text-${roleConfig.color}-800 dark:bg-${roleConfig.color}-900/30 dark:text-${roleConfig.color}-300`}>
                   <RoleIcon className="w-4 h-4 mr-1" />
                   {roleConfig.badge}
                 </span>
@@ -825,17 +880,17 @@ const Profile = () => {
 
             <div className="mt-6 space-y-4">
               <div className="flex items-center text-gray-600 dark:text-gray-400">
-                <Calendar size={18} className="mr-3" />
+                <Calendar size={18} className="mr-3 flex-shrink-0" />
                 <span className="text-sm">
                   {t('profile.memberSince', 'Member since')}: {user?.metadata?.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center text-gray-600 dark:text-gray-400">
-                <MapPin size={18} className="mr-3" />
-                <span className="text-sm">{formData.address || t('profile.noAddress', 'No address provided')}</span>
+                <MapPin size={18} className="mr-3 flex-shrink-0" />
+                <span className="text-sm truncate">{formData.address || t('profile.noAddress', 'No address provided')}</span>
               </div>
               <div className="flex items-center text-gray-600 dark:text-gray-400">
-                <Phone size={18} className="mr-3" />
+                <Phone size={18} className="mr-3 flex-shrink-0" />
                 <span className="text-sm">{formData.phone || t('profile.noPhone', 'No phone provided')}</span>
               </div>
             </div>

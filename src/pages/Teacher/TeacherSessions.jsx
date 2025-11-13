@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { sessionService } from '../../services'
 import Button from '../../components/UI/Button.jsx'
 import LoadingSpinner from '../../components/UI/LoadingSpinner.jsx'
+import CreateSessionModal from "../../components/Session/CreateSessionModal.jsx";
 import {
   Calendar,
   Plus,
@@ -28,8 +29,35 @@ const TeacherSessions = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   const teacherId = user?.uid
+
+  // Detect mobile and handle body scroll
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Handle body scroll when modal is open
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [showCreateModal])
 
   useEffect(() => {
     if (teacherId) {
@@ -57,6 +85,26 @@ const TeacherSessions = () => {
     if (session.meetLink || session.googleMeetLink) {
       window.open(session.meetLink || session.googleMeetLink, '_blank')
     }
+  }
+
+  const handleSessionCreated = () => {
+    loadSessions() // Reload sessions after creation
+    setShowCreateModal(false)
+  }
+
+  // Mobile-optimized click handler
+  const handleScheduleClick = (e) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('📱 Schedule Session button clicked')
+    setShowCreateModal(true)
+  }
+
+  const handleCloseModal = () => {
+    console.log('📱 Closing modal')
+    setShowCreateModal(false)
   }
 
   const filteredSessions = sessions.filter(session => {
@@ -107,73 +155,96 @@ const TeacherSessions = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Sessions</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+      {/* Create Session Modal */}
+      {showCreateModal && (
+        <CreateSessionModal
+          onClose={handleCloseModal}
+          onSuccess={handleSessionCreated}
+        />
+      )}
+
+      {/* Header - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Sessions</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Manage your teaching sessions and Google Meet links
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
+        
+        {/* Mobile-optimized button */}
+        <button 
+          className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation"
+          onClick={handleScheduleClick}
+          onTouchStart={(e) => e.currentTarget.classList.add('active:scale-95')}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Schedule Session
-        </Button>
+        </button>
+        
+        {/* Alternative: Your Button component with mobile fixes */}
+        {/* <Button 
+          className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 active:scale-95 touch-manipulation"
+          onClick={handleScheduleClick}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Schedule Session
+        </Button> */}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+      {/* Stats - Mobile responsive */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 sm:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Scheduled</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.scheduled}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Scheduled</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.scheduled}</p>
             </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="p-2 sm:p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Live</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.live}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Live</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.live}</p>
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <PlayCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+            <div className="p-2 sm:p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+              <PlayCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
           <div className="flex-1">
             <div className="relative">
@@ -217,9 +288,9 @@ const TeacherSessions = () => {
           return (
             <div
               key={session.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl transition-all duration-300"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-xl transition-all duration-300"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start space-x-4">
                     <div className={`p-3 rounded-lg ${
@@ -235,20 +306,20 @@ const TeacherSessions = () => {
                     </div>
                     
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-2">
                         <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
                           {session.title || session.topic}
                         </h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)} self-start sm:self-auto`}>
                           {session.status}
                         </span>
                       </div>
                       
-                      <p className="text-gray-600 dark:text-gray-400 mb-3">
+                      <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm sm:text-base">
                         {session.description}
                       </p>
 
-                      <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
                         <span className="flex items-center">
                           <Calendar className="h-4 w-4 mr-2" />
                           {session.scheduledTime ? new Date(session.scheduledTime).toLocaleDateString() : 'TBD'}
@@ -280,7 +351,7 @@ const TeacherSessions = () => {
                   </div>
                 </div>
 
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   {(isLive || isUpcoming) && (
                     <Button
                       onClick={() => handleJoinSession(session)}
@@ -318,21 +389,24 @@ const TeacherSessions = () => {
       </div>
 
       {filteredSessions.length === 0 && (
-        <div className="text-center py-12">
-          <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+        <div className="text-center py-8 sm:py-12">
+          <Calendar className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             No sessions found
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm sm:text-base">
             {searchTerm || statusFilter !== 'all'
               ? 'Try adjusting your search or filters'
               : 'Get started by scheduling your first session'
             }
           </p>
-          <Button className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
+          <button 
+            className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation mx-auto"
+            onClick={handleScheduleClick}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Schedule Session
-          </Button>
+          </button>
         </div>
       )}
     </div>

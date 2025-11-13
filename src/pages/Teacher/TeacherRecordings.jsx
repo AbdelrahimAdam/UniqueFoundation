@@ -21,7 +21,10 @@ import {
   Clock,
   XCircle,
   TrendingUp,
-  Users
+  Users,
+  Calendar,
+  FileText,
+  BarChart3
 } from 'lucide-react'
 
 const TeacherRecordings = () => {
@@ -33,8 +36,34 @@ const TeacherRecordings = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [actionLoading, setActionLoading] = useState({})
+  const [isMobile, setIsMobile] = useState(false)
 
   const teacherId = user?.uid
+
+  // Detect mobile and handle body scroll
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Handle body scroll when modal is open
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [showCreateModal])
 
   useEffect(() => {
     if (teacherId) {
@@ -82,9 +111,48 @@ const TeacherRecordings = () => {
     }
   }
 
+  const handleDownloadRecording = async (recording) => {
+    if (recording.downloadUrl) {
+      window.open(recording.downloadUrl, '_blank')
+    }
+  }
+
+  const handleShareRecording = async (recording) => {
+    if (navigator.share && recording.recordingUrl) {
+      try {
+        await navigator.share({
+          title: recording.title,
+          text: recording.description,
+          url: recording.recordingUrl,
+        })
+      } catch (error) {
+        console.error('Error sharing recording:', error)
+      }
+    } else if (recording.recordingUrl) {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(recording.recordingUrl)
+      alert('Recording link copied to clipboard!')
+    }
+  }
+
+  // Mobile-optimized click handler
+  const handleCreateClick = (e) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('📱 Create Recording button clicked')
+    setShowCreateModal(true)
+  }
+
   const handleRecordingCreated = () => {
     setShowCreateModal(false)
     loadRecordings()
+  }
+
+  const handleCloseModal = () => {
+    console.log('📱 Closing modal')
+    setShowCreateModal(false)
   }
 
   const filteredRecordings = recordings.filter(recording => {
@@ -104,11 +172,11 @@ const TeacherRecordings = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'from-green-500 to-emerald-500'
-      case 'recording': return 'from-blue-500 to-cyan-500'
-      case 'processing': return 'from-yellow-500 to-orange-500'
-      case 'failed': return 'from-red-500 to-pink-500'
-      default: return 'from-gray-500 to-gray-600'
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+      case 'recording': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+      case 'processing': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
     }
   }
 
@@ -141,6 +209,13 @@ const TeacherRecordings = () => {
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
   }
 
+  const stats = {
+    total: recordings.length,
+    published: recordings.filter(r => r.isPublished).length,
+    totalViews: recordings.reduce((sum, r) => sum + (r.views || 0), 0),
+    inProgress: recordings.filter(r => r.status === 'recording' || r.status === 'processing').length
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -151,82 +226,87 @@ const TeacherRecordings = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Recordings</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+      {/* Create Recording Modal */}
+      {showCreateModal && (
+        <CreateRecordingModal
+          onClose={handleCloseModal}
+          onSuccess={handleRecordingCreated}
+        />
+      )}
+
+      {/* Header - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Recordings</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Manage and publish your recording sessions
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+        
+        {/* Mobile-optimized button */}
+        <button 
+          className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation"
+          onClick={handleCreateClick}
+          onTouchStart={(e) => e.currentTarget.classList.add('active:scale-95')}
         >
           <Plus className="h-4 w-4 mr-2" />
           New Recording
-        </Button>
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+      {/* Stats - Mobile responsive */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{recordings.length}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <Video className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 sm:p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Video className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Published</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {recordings.filter(r => r.isPublished).length}
-              </p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Published</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.published}</p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="p-2 sm:p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Views</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {recordings.reduce((sum, r) => sum + (r.views || 0), 0)}
-              </p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total Views</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.totalViews}</p>
             </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <Eye className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <Eye className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {recordings.filter(r => r.status === 'recording' || r.status === 'processing').length}
-              </p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{stats.inProgress}</p>
             </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="p-2 sm:p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
           <div className="flex-1">
             <div className="relative">
@@ -262,113 +342,151 @@ const TeacherRecordings = () => {
         </div>
       </div>
 
-      {/* Recordings Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* Recordings List - Same layout as TeacherSessions */}
+      <div className="space-y-4">
         {filteredRecordings.map((recording) => {
           const StatusIcon = getStatusIcon(recording.status)
+          const isPublished = recording.isPublished
+          const isProcessing = recording.status === 'processing'
+          const isCompleted = recording.status === 'completed'
           
           return (
             <div
               key={recording.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-xl transition-all duration-300"
             >
-              {/* Recording Header */}
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-2">
-                      {recording.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 line-clamp-2">
-                      {recording.description || 'No description provided'}
-                    </p>
-                  </div>
-                  <div className={`ml-3 p-2 rounded-lg bg-gradient-to-br ${getStatusColor(recording.status)}`}>
-                    <StatusIcon className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center">
-                    <Eye className="h-4 w-4 mr-1" />
-                    {recording.views || 0} views
-                  </span>
-                  <span className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {formatDuration(recording.duration)}
-                  </span>
-                  {recording.isPublished && (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs">
-                      Published
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Recording Details */}
-              <div className="p-6">
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">File Size</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatFileSize(recording.fileSize)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Created</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {new Date(recording.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Status</span>
-                    <span className={`text-sm font-medium capitalize ${
-                      recording.status === 'completed' ? 'text-green-600 dark:text-green-400' :
-                      recording.status === 'recording' ? 'text-blue-600 dark:text-blue-400' :
-                      recording.status === 'processing' ? 'text-yellow-600 dark:text-yellow-400' :
-                      'text-red-600 dark:text-red-400'
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-start space-x-4">
+                    <div className={`p-3 rounded-lg ${
+                      isCompleted ? 'bg-green-100 dark:bg-green-900/30' :
+                      isProcessing ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                      'bg-blue-100 dark:bg-blue-900/30'
                     }`}>
-                      {recording.status}
-                    </span>
+                      <StatusIcon className={`h-6 w-6 ${
+                        isCompleted ? 'text-green-600 dark:text-green-400' :
+                        isProcessing ? 'text-yellow-600 dark:text-yellow-400' :
+                        'text-blue-600 dark:text-blue-400'
+                      }`} />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-2">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
+                          {recording.title}
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(recording.status)}`}>
+                            {recording.status}
+                          </span>
+                          {isPublished && (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                              Published
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm sm:text-base">
+                        {recording.description || 'No description provided'}
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {recording.createdAt ? new Date(recording.createdAt).toLocaleDateString() : 'Unknown date'}
+                        </span>
+                        <span className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {formatDuration(recording.duration)}
+                        </span>
+                        <span className="flex items-center">
+                          <Eye className="h-4 w-4 mr-2" />
+                          {recording.views || 0} views
+                        </span>
+                        <span className="flex items-center">
+                          <FileText className="h-4 w-4 mr-2" />
+                          {formatFileSize(recording.fileSize)}
+                        </span>
+                      </div>
+
+                      {/* Tags */}
+                      {recording.tags && recording.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {recording.tags.slice(0, 3).map((tag, index) => (
+                            <span 
+                              key={index}
+                              className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                          {recording.tags.length > 3 && (
+                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs">
+                              +{recording.tags.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   {recording.recordingUrl && (
                     <a
                       href={recording.recordingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1"
+                      className="flex-1 sm:flex-none"
                     >
-                      <Button className="w-full">
+                      <Button className="w-full sm:w-auto">
                         <PlayCircle className="h-4 w-4 mr-2" />
                         Watch
                       </Button>
                     </a>
                   )}
                   
-                  {recording.isPublished ? (
+                  <div className="flex space-x-2">
+                    {recording.downloadUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadRecording(recording)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
+                    
                     <Button
                       variant="outline"
-                      onClick={() => handleUnpublishRecording(recording.id)}
-                      disabled={actionLoading[recording.id]}
+                      size="sm"
+                      onClick={() => handleShareRecording(recording)}
                     >
-                      <XCircle className="h-4 w-4" />
+                      <Share className="h-4 w-4" />
                     </Button>
-                  ) : (
-                    <Button
-                      onClick={() => handlePublishRecording(recording.id)}
-                      disabled={actionLoading[recording.id]}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                    </Button>
-                  )}
-                  
-                  <Button variant="outline" size="sm">
-                    <Edit className="h-4 w-4" />
-                  </Button>
+                    
+                    {isPublished ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUnpublishRecording(recording.id)}
+                        disabled={actionLoading[recording.id]}
+                        className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900/20"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handlePublishRecording(recording.id)}
+                        disabled={actionLoading[recording.id] || recording.status !== 'completed'}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -377,33 +495,25 @@ const TeacherRecordings = () => {
       </div>
 
       {filteredRecordings.length === 0 && (
-        <div className="text-center py-12">
-          <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+        <div className="text-center py-8 sm:py-12">
+          <Video className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             No recordings found
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm sm:text-base">
             {searchTerm || statusFilter !== 'all'
               ? 'Try adjusting your search or filters'
               : 'Get started by creating your first recording'
             }
           </p>
-          <Button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+          <button 
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-medium flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 touch-manipulation mx-auto"
+            onClick={handleCreateClick}
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Recording
-          </Button>
+          </button>
         </div>
-      )}
-
-      {/* Create Recording Modal */}
-      {showCreateModal && (
-        <CreateRecordingModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleRecordingCreated}
-        />
       )}
     </div>
   )
