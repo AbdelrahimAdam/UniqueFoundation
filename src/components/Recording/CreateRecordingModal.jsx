@@ -35,6 +35,7 @@ const CustomInput = React.forwardRef(({
   suffix,
   required,
   autoFocus = false,
+  inputMode,
   ...props 
 }, ref) => {
   return (
@@ -55,6 +56,7 @@ const CustomInput = React.forwardRef(({
         )}
         <input
           type={type}
+          inputMode={inputMode}
           className={`w-full px-4 py-3 border ${
             error 
               ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500' 
@@ -147,6 +149,46 @@ const CreateRecordingModal = ({
   const titleRef = useRef(null)
   const descriptionRef = useRef(null)
   const recordingUrlRef = useRef(null)
+
+  // Helper function to normalize Google Drive links for proper redirection
+  const normalizeDriveLink = useCallback((url) => {
+    if (!url) return '';
+    
+    let normalized = url.trim();
+    
+    // Remove any extra spaces
+    normalized = normalized.replace(/\s+/g, '');
+    
+    // Extract file ID from various Google Drive URL formats
+    const extractFileId = (driveUrl) => {
+      // Pattern 1: https://drive.google.com/file/d/FILE_ID/view
+      const filePattern1 = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+      // Pattern 2: https://drive.google.com/open?id=FILE_ID
+      const filePattern2 = /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/;
+      // Pattern 3: Just the file ID itself
+      const filePattern3 = /^[a-zA-Z0-9_-]+$/;
+      
+      const match1 = driveUrl.match(filePattern1);
+      const match2 = driveUrl.match(filePattern2);
+      const match3 = driveUrl.match(filePattern3);
+      
+      if (match1) return match1[1];
+      if (match2) return match2[1];
+      if (match3) return match3[0];
+      
+      return null;
+    };
+    
+    const fileId = extractFileId(normalized);
+    
+    if (fileId) {
+      // Return the standard Google Drive file URL format
+      return `https://drive.google.com/file/d/${fileId}/view`;
+    }
+    
+    // If no file ID found, return the original URL as is
+    return normalized;
+  }, []);
 
   const { 
     register, 
@@ -304,16 +346,43 @@ const CreateRecordingModal = ({
     }
   }
 
-  // Validate Google Drive link and create preview
+  // Validate Google Drive link and create preview - NO VALIDATION, JUST PREVIEW
   const validateAndPreviewDriveLink = (url) => {
     try {
-      const isValid = recordingService.recordingWorkflow.validateDriveUrl(url)
+      if (!url || url.trim() === '') {
+        setDriveLinkPreview({
+          isValid: true, // Changed to true to not block submission
+          previewText: 'Enter a Google Drive link'
+        });
+        return;
+      }
+
+      // Extract file ID from various Google Drive URL formats
+      const extractFileId = (driveUrl) => {
+        // Pattern 1: https://drive.google.com/file/d/FILE_ID/view
+        const filePattern1 = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+        // Pattern 2: https://drive.google.com/open?id=FILE_ID
+        const filePattern2 = /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/;
+        // Pattern 3: Just the file ID itself (for direct input)
+        const filePattern3 = /^[a-zA-Z0-9_-]{25,}$/;
+        
+        const match1 = driveUrl.match(filePattern1);
+        const match2 = driveUrl.match(filePattern2);
+        const match3 = driveUrl.match(filePattern3);
+        
+        if (match1) return match1[1];
+        if (match2) return match2[1];
+        if (match3) return match3[0];
+        
+        return null;
+      };
       
-      if (isValid) {
-        const fileId = recordingService.extractDriveFileId(url)
-        const previewUrl = `https://drive.google.com/uc?export=view&id=${fileId}`
-        const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`
-        const viewUrl = `https://drive.google.com/file/d/${fileId}/view`
+      const fileId = extractFileId(url);
+      
+      if (fileId) {
+        const previewUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+        const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        const viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
         
         setDriveLinkPreview({
           isValid: true,
@@ -322,18 +391,23 @@ const CreateRecordingModal = ({
           downloadUrl,
           viewUrl,
           type: 'google_drive'
-        })
+        });
       } else {
+        // If no file ID found, still mark as valid but show warning
         setDriveLinkPreview({
-          isValid: false,
-          error: 'Please enter a valid Google Drive link (should start with https://drive.google.com/file/d/)'
-        })
+          isValid: true, // ALWAYS TRUE NOW - NO VALIDATION BLOCKING
+          previewText: 'Link accepted - will be saved as provided',
+          viewUrl: url // Use the original URL for redirection
+        });
       }
     } catch (error) {
+      console.error('Error processing Drive link:', error);
+      // Even if there's an error, still mark as valid
       setDriveLinkPreview({
-        isValid: false,
-        error: 'Invalid URL format'
-      })
+        isValid: true, // ALWAYS TRUE NOW - NO VALIDATION BLOCKING
+        previewText: 'Link accepted - will be saved as provided',
+        viewUrl: watchedValues.recordingUrl
+      });
     }
   }
 
@@ -353,12 +427,17 @@ const CreateRecordingModal = ({
       // ✅ FIX: Process tags properly and handle empty sessionId
       const processedTags = processTags(recordingData.tags)
       
+      // Normalize the Google Drive link before saving
+      const normalizedDriveLink = normalizeDriveLink(recordingData.recordingUrl);
+      console.log('🔗 Original drive link:', recordingData.recordingUrl);
+      console.log('🔗 Normalized drive link:', normalizedDriveLink);
+
       // Prepare recording data for the service
       const recordingPayload = {
         title: recordingData.title,
         description: recordingData.description,
         meetLink: recordingData.meetLink || '', // ✅ FIX: Ensure it's never undefined
-        recordingUrl: recordingData.recordingUrl,
+        recordingUrl: normalizedDriveLink, // Use normalized drive link for proper redirection
         duration: parseInt(recordingData.duration) || 0,
         fileSize: parseInt(recordingData.fileSize) || 0,
         quality: recordingData.quality,
@@ -441,16 +520,11 @@ const CreateRecordingModal = ({
       // Simulate upload progress
       const progressInterval = simulateUploadProgress()
       
-      // Validate Google Drive URL
+      // Validate required fields only
       if (!data.recordingUrl) {
         throw new Error('Google Drive link is required')
       }
 
-      if (!driveLinkPreview.isValid) {
-        throw new Error('Please enter a valid Google Drive link')
-      }
-
-      // Validate required fields
       if (!data.title.trim()) {
         throw new Error('Recording title is required')
       }
@@ -776,22 +850,23 @@ const CreateRecordingModal = ({
               />
             </div>
 
-            {/* Google Meet Link - Now Optional */}
+            {/* Google Meet Link - Now Optional with NO VALIDATION */}
             <div>
               <CustomInput
                 label="Google Meet Link (Optional)"
-                type="url"
+                type="text" // Changed from "url" to "text" to avoid browser validation
+                inputMode="url" // Better mobile keyboard
                 placeholder="https://meet.google.com/..."
                 error={errors.meetLink?.message}
                 disabled={isSubmitting || !!selectedSession}
                 icon={Video}
                 {...register('meetLink', {
-                  pattern: {
-                    value: /https:\/\/meet\.google\.com\/[a-z-]+/,
-                    message: 'Please enter a valid Google Meet link'
-                  }
+                  // NO PATTERN VALIDATION - Accepts any text
                 })}
               />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Paste any Google Meet link or leave empty
+              </p>
             </div>
 
             {/* Category */}
@@ -805,13 +880,14 @@ const CreateRecordingModal = ({
               icon={BookOpen}
             />
 
-            {/* Google Drive URL */}
+            {/* Google Drive URL - NO VALIDATION */}
             <div className="lg:col-span-2">
               <CustomInput
                 label="Google Drive Recording Link *"
-                type="url"
-                placeholder="https://drive.google.com/file/d/..."
-                error={errors.recordingUrl?.message || (driveLinkPreview.error && !driveLinkPreview.isValid)}
+                type="text" // Changed from "url" to "text" for better mobile compatibility
+                inputMode="url"
+                placeholder="Paste any Google Drive link or file ID"
+                error={errors.recordingUrl?.message}
                 disabled={isSubmitting}
                 icon={Download}
                 required
@@ -819,74 +895,52 @@ const CreateRecordingModal = ({
                 autoFocus={!!selectedSession}
                 {...register('recordingUrl', {
                   required: 'Google Drive link is required',
-                  pattern: {
-                    value: /https:\/\/drive\.google\.com\/(file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/,
-                    message: 'Please enter a valid Google Drive link'
-                  }
+                  // NO PATTERN VALIDATION - Accepts any text
                 })}
               />
               
-              {/* Google Drive Link Preview */}
-              {driveLinkPreview.isValid && (
+              {/* Google Drive Link Preview - Always shows when there's content */}
+              {watchedValues.recordingUrl && (
                 <div className="mt-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="h-5 w-5 text-green-500" />
                       <div>
                         <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                          Valid Google Drive Link
+                          Link Accepted
                         </p>
                         <p className="text-xs text-green-600 dark:text-green-400">
-                          File ID: {driveLinkPreview.fileId}
+                          {driveLinkPreview.fileId ? `File ID: ${driveLinkPreview.fileId}` : 'Will be saved as provided'}
                         </p>
                       </div>
                     </div>
                     <div className="flex space-x-2">
                       <a
-                        href={driveLinkPreview.viewUrl}
+                        href={driveLinkPreview.viewUrl || watchedValues.recordingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
                       >
                         <ExternalLink size={14} />
-                        <span>View</span>
-                      </a>
-                      <a
-                        href={driveLinkPreview.downloadUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-1 px-3 py-1 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
-                      >
-                        <Download size={14} />
-                        <span>Download</span>
+                        <span>Test Link</span>
                       </a>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {driveLinkPreview.error && !driveLinkPreview.isValid && watchedValues.recordingUrl && (
-                <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <p className="text-sm text-red-700 dark:text-red-300">
-                      {driveLinkPreview.error}
-                    </p>
                   </div>
                 </div>
               )}
 
               <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>How to get your Google Drive link:</strong><br/>
+                  <strong>Any Google Drive link is accepted:</strong><br/>
+                  
+                  <strong>How to get your link:</strong><br/>
                   1. Go to drive.google.com<br/>
-                  2. Find your recording in "Meet Recordings" folder<br/>
+                  2. Find your recording<br/>
                   3. Right-click → "Share" → "Copy link"<br/>
-                  4. Paste the link above
+                  4. Paste above
                 </p>
               </div>
             </div>
-
             {/* Duration & Quality */}
             <div>
               <CustomInput
@@ -1031,7 +1085,7 @@ const CreateRecordingModal = ({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !isDirty || !isValid || !driveLinkPreview.isValid}
+              disabled={isSubmitting || !isDirty || !isValid}
               loading={isSubmitting}
               className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
               icon={Upload}

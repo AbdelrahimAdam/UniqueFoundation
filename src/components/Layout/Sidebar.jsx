@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth.jsx'
@@ -7,9 +7,7 @@ import {
   Video, 
   Users, 
   BarChart3, 
-  Settings,
   BookOpen,
-  Menu,
   X,
   User,
   LogOut,
@@ -18,21 +16,62 @@ import {
   Shield,
   GraduationCap,
   UserCheck,
-  CreditCard,
   Calendar,
   FileText,
-  MessageSquare,
-  Bell,
   HelpCircle,
-  Zap,
   TrendingUp,
   Crown,
-  Database,
-  Activity,
-  MessageCircle
 } from 'lucide-react'
 
-const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
+// Memoized menu items to prevent unnecessary re-renders
+const MenuItem = memo(({ 
+  item, 
+  isActive, 
+  isRTL, 
+  roleColors, 
+  handleNavigation 
+}) => {
+  const Icon = item.icon
+  
+  return (
+    <button
+      onClick={() => handleNavigation(item.path)}
+      className={`group relative flex items-center w-full px-3 sm:px-4 py-3 sm:py-4 text-left rtl:text-right rounded-2xl transition-all duration-200 backdrop-blur-sm border ${
+        isActive
+          ? `${roleColors.bg} ${roleColors.text} ${roleColors.border} shadow-lg transform scale-105`
+          : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-800/50 hover:shadow-md border-transparent hover:border-white/20 dark:hover:border-gray-600/20'
+      }`}
+    >
+      {isActive && (
+        <div className={`absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b ${roleColors.gradient} rounded-r-full shadow-sm`}></div>
+      )}
+      
+      <div className={`p-2 rounded-xl transition-all duration-200 backdrop-blur-sm ${
+        isActive 
+          ? `bg-gradient-to-br ${roleColors.gradient} shadow-lg` 
+          : 'bg-white/50 dark:bg-gray-800/50 group-hover:bg-white/70 dark:group-hover:bg-gray-700/50'
+      }`}>
+        <Icon 
+          size={18} 
+          className={
+            isActive 
+              ? 'text-white' 
+              : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200'
+          } 
+        />
+      </div>
+      
+      <div className={`${isRTL ? 'mr-3' : 'ml-3'} flex-1 min-w-0`}>
+        <span className="font-medium block text-sm truncate">{item.label}</span>
+        <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-600 dark:text-gray-400 truncate">
+          {item.description}
+        </span>
+      </div>
+    </button>
+  )
+})
+
+const Sidebar = ({ isOpen, onClose, userRole = 'student', isMobile = false }) => {
   const { t, i18n } = useTranslation()
   const { user, logout, userProfile } = useAuth()
   const location = useLocation()
@@ -40,22 +79,24 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
   const isRTL = i18n.language === 'ar'
   const [darkMode, setDarkMode] = useState(false)
 
-  // Initialize dark mode
+  // Initialize dark mode - optimized
   useEffect(() => {
     const isDark = localStorage.getItem('theme') === 'dark' || 
       window.matchMedia('(prefers-color-scheme: dark)').matches
     setDarkMode(isDark)
+    document.documentElement.classList.toggle('dark', isDark)
   }, [])
 
-  const toggleDarkMode = () => {
+  // Optimized dark mode toggle
+  const toggleDarkMode = useCallback(() => {
     const newDarkMode = !darkMode
     setDarkMode(newDarkMode)
     localStorage.setItem('theme', newDarkMode ? 'dark' : 'light')
     document.documentElement.classList.toggle('dark', newDarkMode)
-  }
+  }, [darkMode])
 
-  // Role-based menu configuration
-  const menuConfig = {
+  // Pre-memoized menu configuration
+  const menuConfig = React.useMemo(() => ({
     admin: [
       { 
         id: 'dashboard', 
@@ -143,13 +184,6 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
         path: '/teacher/analytics',
         description: t('sidebar.analytics_desc', 'Teaching performance insights')
       },
-      { 
-        id: 'messages', 
-        label: t('sidebar.messages', 'Messages'), 
-        icon: MessageSquare, 
-        path: '/teacher/messages',
-        description: t('sidebar.messages_desc', 'Communicate with students')
-      },
     ],
     student: [
       { 
@@ -202,24 +236,10 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
         description: t('sidebar.teachers_desc', 'View available teachers')
       },
     ]
-  }
+  }), [t])
 
-  // Common routes for all roles (removed subscription)
-  const commonRoutes = [
-    { 
-      id: 'notifications', 
-      label: t('sidebar.notifications', 'Notifications'), 
-      icon: Bell, 
-      path: '/notifications',
-      description: t('sidebar.notifications_desc', 'View your notifications')
-    },
-    { 
-      id: 'messages', 
-      label: t('sidebar.messages', 'Messages'), 
-      icon: MessageCircle, 
-      path: '/messages',
-      description: t('sidebar.messages_desc', 'Check your messages')
-    },
+  // Common routes for all roles
+  const commonRoutes = React.useMemo(() => [
     { 
       id: 'profile', 
       label: t('sidebar.profile', 'Profile'), 
@@ -234,15 +254,18 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
       path: '/help',
       description: t('sidebar.help_desc', 'Get help and support')
     },
-  ]
+  ], [t])
 
-  const getMenuItems = () => menuConfig[userRole] || []
+  const getMenuItems = useCallback(() => menuConfig[userRole] || [], [menuConfig, userRole])
   const menuItems = getMenuItems()
 
-  const handleNavigation = (path) => {
+  // Optimized navigation handler
+  const handleNavigation = useCallback((path) => {
     navigate(path)
-    onClose?.()
-  }
+    if (isMobile) {
+      onClose?.()
+    }
+  }, [navigate, isMobile, onClose])
 
   const handleLogout = async () => {
     try {
@@ -253,20 +276,21 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
     }
   }
 
-  const isActive = (path) => {
+  // Optimized active path check
+  const isActive = useCallback((path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/')
-  }
+  }, [location.pathname])
 
-  const getRoleIcon = () => {
+  const getRoleIcon = useCallback(() => {
     switch (userRole) {
       case 'admin': return Shield
       case 'teacher': return UserCheck
       case 'student': return GraduationCap
       default: return User
     }
-  }
+  }, [userRole])
 
-  const getRoleColors = () => {
+  const getRoleColors = useCallback(() => {
     switch (userRole) {
       case 'admin': 
         return {
@@ -301,13 +325,13 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
           border: 'border-gray-200/50 dark:border-gray-700/50'
         }
     }
-  }
+  }, [userRole])
 
   const RoleIcon = getRoleIcon()
   const roleColors = getRoleColors()
 
   // Get user initials for avatar
-  const getUserInitials = () => {
+  const getUserInitials = useCallback(() => {
     if (user?.displayName) {
       return user.displayName.charAt(0).toUpperCase()
     }
@@ -315,74 +339,84 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
       return user.email.charAt(0).toUpperCase()
     }
     return 'U'
-  }
+  }, [user])
 
   // Get user display name
-  const getUserDisplayName = () => {
+  const getUserDisplayName = useCallback(() => {
     return user?.displayName || user?.email || 'User'
-  }
+  }, [user])
 
   return (
     <div className={`
-      fixed inset-y-0 left-0 z-50 w-80 
-      bg-white/85 dark:bg-gray-900/85 backdrop-blur-2xl
+      fixed inset-y-0 left-0 z-50 w-64 sm:w-72 lg:w-80 
+      bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl
       border-r border-white/40 dark:border-gray-700/40
       shadow-2xl shadow-black/10 dark:shadow-black/30
-      transform transition-transform duration-300 ease-in-out
+      transform transition-transform duration-300 ease-out
       lg:translate-x-0 lg:static lg:inset-0
       ${isRTL ? 'right-0 left-auto' : ''}
-      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      flex flex-col h-screen
+      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      flex flex-col h-screen rounded-r-3xl lg:rounded-r-none
     `}>
       
-      {/* Static Header */}
-      <div className="flex-shrink-0">
-        <div className="flex items-center justify-between h-20 px-6 border-b border-white/30 dark:border-gray-700/30">
+      {/* Static Header with Logo */}
+      <div className="flex-shrink-0 rounded-t-3xl overflow-hidden">
+        <div className="flex items-center justify-between h-20 px-4 sm:px-6 border-b border-white/30 dark:border-gray-700/30 bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg backdrop-blur-sm overflow-hidden">
+              {/* Unique Foundation Logo - Full Rounded */}
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 border-2 border-white/20">
                 <img 
                   src="/logo.png" 
-                  alt="Unique Foundation Logo" 
-                  className="w-full h-full rounded-full object-cover"
+                  alt="Unique Foundation Logo"
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => {
+                    // Fallback if logo doesn't load
+                    e.target.style.display = 'none'
+                    e.target.nextSibling.style.display = 'flex'
+                  }}
                 />
+                {/* Fallback logo */}
+                <div className="w-full h-full hidden items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 rounded-full">
+                  <div className="text-white font-bold text-sm sm:text-base">UF</div>
+                </div>
               </div>
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 border-2 border-white dark:border-gray-900 rounded-full shadow-sm"></div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-green-400 border-2 border-white dark:border-gray-900 rounded-full shadow-sm"></div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent truncate">
                 Unique Foundation
               </h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{userRole} Portal</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 capitalize truncate">{userRole} Portal</p>
             </div>
           </div>
           
           {/* Close button for mobile */}
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 transition-colors duration-200 backdrop-blur-sm"
+            className="lg:hidden p-2 rounded-xl bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 transition-all duration-200 backdrop-blur-sm hover:scale-110"
             aria-label="Close sidebar"
           >
-            <X size={20} className="text-gray-600 dark:text-gray-400" />
+            <X size={18} className="text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
         {/* User Profile Section */}
-        <div className="p-6 border-b border-white/30 dark:border-gray-700/30">
+        <div className="p-4 sm:p-6 border-b border-white/30 dark:border-gray-700/30 bg-gradient-to-br from-white/60 to-white/40 dark:from-gray-800/60 dark:to-gray-800/40 backdrop-blur-xl">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <div className="relative">
-              <div className={`w-14 h-14 bg-gradient-to-br ${roleColors.gradient} rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-xl backdrop-blur-sm`}>
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br ${roleColors.gradient} rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-xl backdrop-blur-sm transition-all duration-200 hover:scale-105`}>
                 {getUserInitials()}
               </div>
-              <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-br ${roleColors.gradient} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900 shadow-sm backdrop-blur-sm`}>
-                <RoleIcon size={12} className="text-white" />
+              <div className={`absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br ${roleColors.gradient} rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900 shadow-sm backdrop-blur-sm`}>
+                <RoleIcon size={10} className="text-white" />
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate text-base">
+              <h3 className="font-semibold text-gray-900 dark:text-white truncate text-sm sm:text-base">
                 {getUserDisplayName()}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
                 {user?.email || 'user@example.com'}
               </p>
               <div className="flex items-center space-x-1 mt-1">
@@ -402,60 +436,27 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
       </div>
 
       {/* Scrollable Navigation Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col rounded-b-3xl">
         <div className="flex-1 overflow-y-auto">
-          <nav className="px-4 py-6 space-y-2">
-            <p className="px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 backdrop-blur-sm">
+          <nav className="px-3 sm:px-4 py-4 sm:py-6 space-y-2">
+            <p className="px-3 sm:px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 backdrop-blur-sm">
               Main Menu
             </p>
-            {menuItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.path)
-              
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavigation(item.path)}
-                  className={`group relative flex items-center w-full px-4 py-4 text-left rtl:text-right rounded-2xl transition-all duration-300 backdrop-blur-sm ${
-                    active
-                      ? `${roleColors.bg} ${roleColors.text} border ${roleColors.border} shadow-lg`
-                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-800/50 hover:shadow-md border border-transparent'
-                  }`}
-                >
-                  {/* Active indicator */}
-                  {active && (
-                    <div className={`absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b ${roleColors.gradient} rounded-r-full shadow-sm`}></div>
-                  )}
-                  
-                  <div className={`p-2 rounded-xl transition-all duration-300 backdrop-blur-sm ${
-                    active 
-                      ? `bg-gradient-to-br ${roleColors.gradient} shadow-lg` 
-                      : 'bg-white/50 dark:bg-gray-800/50 group-hover:bg-white/70 dark:group-hover:bg-gray-700/50'
-                  }`}>
-                    <Icon 
-                      size={20} 
-                      className={
-                        active 
-                          ? 'text-white' 
-                          : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200'
-                      } 
-                    />
-                  </div>
-                  
-                  <div className={`${isRTL ? 'mr-3' : 'ml-3'} flex-1 min-w-0`}>
-                    <span className="font-medium block text-sm truncate">{item.label}</span>
-                    <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-gray-600 dark:text-gray-400 truncate">
-                      {item.description}
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
+            {menuItems.map((item) => (
+              <MenuItem
+                key={item.id}
+                item={item}
+                isActive={isActive(item.path)}
+                isRTL={isRTL}
+                roleColors={roleColors}
+                handleNavigation={handleNavigation}
+              />
+            ))}
           </nav>
 
           {/* Common Routes Section */}
-          <div className="px-4 py-6 border-t border-white/30 dark:border-gray-700/30">
-            <p className="px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 backdrop-blur-sm">
+          <div className="px-3 sm:px-4 py-4 sm:py-6 border-t border-white/30 dark:border-gray-700/30">
+            <p className="px-3 sm:px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2 backdrop-blur-sm">
               General
             </p>
             <div className="space-y-2">
@@ -467,14 +468,14 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
                   <button
                     key={item.id}
                     onClick={() => handleNavigation(item.path)}
-                    className={`group relative flex items-center w-full px-4 py-3 text-left rtl:text-right rounded-xl transition-all duration-300 backdrop-blur-sm ${
+                    className={`group relative flex items-center w-full px-3 sm:px-4 py-3 text-left rtl:text-right rounded-xl transition-all duration-200 backdrop-blur-sm border ${
                       active
-                        ? `${roleColors.bg} ${roleColors.text} border ${roleColors.border} shadow-md`
-                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-800/50 border border-transparent'
+                        ? `${roleColors.bg} ${roleColors.text} ${roleColors.border} shadow-md transform scale-105`
+                        : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-800/50 border-transparent hover:border-white/20 dark:hover:border-gray-600/20'
                     }`}
                   >
                     <Icon 
-                      size={18} 
+                      size={16} 
                       className={
                         active 
                           ? roleColors.text
@@ -482,16 +483,9 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
                       } 
                     />
                     
-                    <span className={`${isRTL ? 'mr-3' : 'ml-3'} font-medium text-sm flex-1 text-left`}>
+                    <span className={`${isRTL ? 'mr-3' : 'ml-3'} font-medium text-sm flex-1 text-left truncate`}>
                       {item.label}
                     </span>
-
-                    {/* Notification badges */}
-                    {(item.id === 'notifications' || item.id === 'messages') && (
-                      <span className="px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full min-w-[20px] text-center backdrop-blur-sm shadow-sm">
-                        3
-                      </span>
-                    )}
                   </button>
                 )
               })}
@@ -501,17 +495,17 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
       </div>
 
       {/* Static Footer */}
-      <div className="flex-shrink-0">
-        <div className="p-4 space-y-2 border-t border-white/30 dark:border-gray-700/30 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm">
+      <div className="flex-shrink-0 rounded-b-3xl overflow-hidden">
+        <div className="p-3 sm:p-4 space-y-2 border-t border-white/30 dark:border-gray-700/30 bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
-            className="flex items-center w-full px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-xl transition-all duration-300 hover:bg-white/50 dark:hover:bg-gray-700/50 group backdrop-blur-sm"
+            className="flex items-center w-full px-3 sm:px-4 py-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-xl transition-all duration-200 hover:bg-white/50 dark:hover:bg-gray-700/50 group backdrop-blur-sm border border-transparent hover:border-white/20 dark:hover:border-gray-600/20"
           >
             {darkMode ? (
-              <Sun size={18} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:text-yellow-500 transition-colors`} />
+              <Sun size={16} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:text-yellow-500 transition-colors`} />
             ) : (
-              <Moon size={18} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:text-blue-500 transition-colors`} />
+              <Moon size={16} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:text-blue-500 transition-colors`} />
             )}
             <span className="font-medium text-sm flex-1 text-left">
               {darkMode ? t('sidebar.lightMode', 'Light Mode') : t('sidebar.darkMode', 'Dark Mode')}
@@ -521,9 +515,9 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center w-full px-4 py-3 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 rounded-xl transition-all duration-300 hover:bg-red-50/50 dark:hover:bg-red-900/20 group backdrop-blur-sm"
+            className="flex items-center w-full px-3 sm:px-4 py-3 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 rounded-xl transition-all duration-200 hover:bg-red-50/50 dark:hover:bg-red-900/20 group backdrop-blur-sm border border-transparent hover:border-red-200/50 dark:hover:border-red-800/50"
           >
-            <LogOut size={18} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:scale-105 transition-transform`} />
+            <LogOut size={16} className={`${isRTL ? 'ml-3' : 'mr-3'} group-hover:scale-105 transition-transform`} />
             <span className="font-medium text-sm flex-1 text-left">{t('sidebar.logout', 'Logout')}</span>
           </button>
 
@@ -543,4 +537,4 @@ const Sidebar = ({ isOpen, onClose, userRole = 'student' }) => {
   )
 }
 
-export default Sidebar
+export default memo(Sidebar)

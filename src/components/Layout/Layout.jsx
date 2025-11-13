@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Header from './Header';
 import Sidebar from './Sidebar';
+import Header from './Header';
 
 const Layout = ({ children, role = 'student' }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Theme initialization
   useEffect(() => {
@@ -38,6 +50,13 @@ const Layout = ({ children, role = 'student' }) => {
     setIsSidebarOpen(prev => !prev);
   }, []);
 
+  // Auto-close sidebar when clicking on main content on mobile
+  const handleMainContentClick = useCallback(() => {
+    if (isMobile && isSidebarOpen) {
+      closeSidebar();
+    }
+  }, [isMobile, isSidebarOpen, closeSidebar]);
+
   // Close sidebar on Escape key
   useEffect(() => {
     const handleEscape = (event) => {
@@ -57,6 +76,13 @@ const Layout = ({ children, role = 'student' }) => {
     }
   }, [closeSidebar]);
 
+  // Close sidebar on route change (for SPA navigation)
+  useEffect(() => {
+    if (isMobile) {
+      closeSidebar();
+    }
+  }, [children, isMobile, closeSidebar]);
+
   // Role-based background gradients
   const getBackgroundGradient = () => {
     switch (role) {
@@ -73,11 +99,11 @@ const Layout = ({ children, role = 'student' }) => {
 
   return (
     <div className={`min-h-screen ${getBackgroundGradient()} transition-colors duration-300`}>
-      {/* Decorative Background Blobs */}
+      {/* Decorative Background Blobs - Reduced intensity for mobile */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-200 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-pulse delay-1000" />
-        <div className="absolute top-40 left-1/2 w-80 h-80 bg-pink-200 dark:bg-pink-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-pulse delay-500" />
+        <div className="absolute -top-20 -right-20 sm:-top-40 sm:-right-40 w-40 h-40 sm:w-80 sm:h-80 bg-blue-200 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-2xl sm:blur-3xl opacity-10 sm:opacity-20 animate-pulse" />
+        <div className="absolute -bottom-20 -left-20 sm:-bottom-40 sm:-left-40 w-40 h-40 sm:w-80 sm:h-80 bg-purple-200 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-2xl sm:blur-3xl opacity-10 sm:opacity-20 animate-pulse delay-1000" />
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-40 h-40 sm:w-80 sm:h-80 bg-pink-200 dark:bg-pink-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-2xl sm:blur-3xl opacity-10 sm:opacity-20 animate-pulse delay-500" />
       </div>
 
       <div className="relative z-10 flex h-screen overflow-hidden">
@@ -90,41 +116,45 @@ const Layout = ({ children, role = 'student' }) => {
           />
         )}
 
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed inset-y-0 left-0 z-50 w-80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl
-            border-r border-white/20 dark:border-gray-700/50 shadow-2xl
-            transform transition-transform duration-300 ease-in-out
-            lg:translate-x-0 lg:static lg:inset-auto
-            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          `}
-          aria-label="Sidebar navigation"
-        >
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            onClose={closeSidebar}
-            userRole={role}
-          />
-        </aside>
+        {/* Sidebar Component */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={closeSidebar}
+          userRole={role}
+          isMobile={isMobile}
+        />
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen lg:ml-0 overflow-hidden">
+        {/* Main Content Area */}
+        <div 
+          className="flex-1 flex flex-col min-h-screen lg:ml-0 overflow-hidden"
+          onClick={handleMainContentClick}
+        >
+          {/* Header */}
           <Header
             onMenuClick={toggleSidebar}
             isDarkMode={isDarkMode}
             toggleDarkMode={toggleDarkMode}
             userRole={role}
+            isSidebarOpen={isSidebarOpen}
           />
 
           {/* Scrollable Page Content */}
-          <main className="flex-1 overflow-auto p-4 lg:p-6 transition-all duration-300">
+          <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 transition-all duration-300">
             <div className="max-w-7xl mx-auto w-full">
               {children}
             </div>
           </main>
         </div>
       </div>
+
+      {/* Mobile Navigation Hint (only on mobile when sidebar is closed) */}
+      {isMobile && !isSidebarOpen && (
+        <div className="fixed bottom-4 left-4 z-30 lg:hidden">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20 dark:border-gray-700/50">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -85,10 +85,10 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
         stiffness: 400,
         damping: 40
       }}
-      className="group bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
+      className="group bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105"
     >
       {/* Thumbnail Section */}
-      <div className="h-48 bg-gradient-to-br from-blue-500 to-cyan-500 relative overflow-hidden">
+      <div className="h-40 sm:h-48 bg-gradient-to-br from-blue-500 to-cyan-500 relative overflow-hidden">
         {recording.thumbnailUrl ? (
           <>
             <img 
@@ -102,33 +102,33 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
             />
             {!imageLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500">
-                <Video className="h-8 w-8 text-white opacity-80" />
+                <Video className="h-6 w-6 sm:h-8 sm:w-8 text-white opacity-80" />
               </div>
             )}
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500">
-            <Video className="h-16 w-16 text-white opacity-80" />
+            <Video className="h-10 w-10 sm:h-16 sm:w-16 text-white opacity-80" />
           </div>
         )}
         
         {/* Badges */}
-        <div className="absolute bottom-4 left-4">
-          <span className="px-3 py-1 bg-black bg-opacity-70 text-white rounded-full text-sm font-medium backdrop-blur-sm">
+        <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4">
+          <span className="px-2 sm:px-3 py-1 bg-black bg-opacity-70 text-white rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
             {formatDuration(recording.duration)}
           </span>
         </div>
         
         {recording.watched && (
-          <div className="absolute top-4 right-4">
-            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+          <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+            <span className="px-2 sm:px-3 py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
               <Check className="h-3 w-3" /> Watched
             </span>
           </div>
         )}
         
         {isDrive && (
-          <div className="absolute top-4 left-4">
+          <div className="absolute top-3 sm:top-4 left-3 sm:left-4">
             <span className="px-2 py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
               Drive
@@ -141,23 +141,23 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black bg-opacity-40">
             <button
               onClick={() => onWatch(recording)}
-              className="p-4 bg-white bg-opacity-20 rounded-full backdrop-blur-sm hover:bg-opacity-30 transition-all transform hover:scale-110"
+              className="p-3 sm:p-4 bg-white bg-opacity-20 rounded-full backdrop-blur-sm hover:bg-opacity-30 transition-all transform hover:scale-110"
               title="Watch on Google Drive"
             >
-              <PlayCircle className="h-8 w-8 text-white" />
+              <PlayCircle className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </button>
           </div>
         )}
       </div>
 
       {/* Content Section */}
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
         <div className="flex items-start justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-2 flex-1">
+          <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-2 flex-1">
             {recording.title}
           </h3>
           {recording.isFeatured && (
-            <Star className="h-5 w-5 text-yellow-500 fill-current ml-2 flex-shrink-0" />
+            <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current ml-2 flex-shrink-0" />
           )}
         </div>
         
@@ -165,25 +165,25 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
           {recording.description || 'No description available'}
         </p>
         
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {recording.instructorName}
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="truncate">{recording.instructorName}</span>
             </span>
             <span className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
               {recording.views || 0}
             </span>
           </div>
           {recording.category && (
-            <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-xs rounded-full capitalize">
+            <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-xs rounded-full capitalize whitespace-nowrap">
               {recording.category}
             </span>
           )}
         </div>
         
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {recording.createdAt ? new Date(recording.createdAt).toLocaleDateString() : 'Unknown date'}
           </span>
@@ -191,9 +191,9 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
             <Button 
               onClick={() => onWatch(recording)} 
               size="sm" 
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-xs sm:text-sm"
             >
-              <PlayCircle className="h-4 w-4 mr-1" /> 
+              <PlayCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> 
               Watch
             </Button>
             <Button 
@@ -201,8 +201,9 @@ const RecordingCard = React.memo(forwardRef(({ recording, onWatch, onDownload, i
               size="sm" 
               onClick={() => onDownload(recording)}
               title="Download video"
+              className="text-xs sm:text-sm"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
@@ -227,7 +228,6 @@ const SessionCard = React.memo(forwardRef(({ session, onJoin, index, type }, ref
   const statusText = isLive ? 'Live Now' : 'Upcoming'
   const buttonText = isLive ? 'Join Live' : 'Join Session'
   
-  // FIXED: Changed from buttonIcon to ButtonIcon (PascalCase)
   const ButtonIcon = isLive ? Radio : UserPlus
 
   return (
@@ -242,23 +242,23 @@ const SessionCard = React.memo(forwardRef(({ session, onJoin, index, type }, ref
         stiffness: 400,
         damping: 40
       }}
-      className={`group bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 border-l-4 ${borderColor} ${isLive ? 'animate-pulse' : ''}`}
+      className={`group bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 border-l-4 ${borderColor} ${isLive ? 'animate-pulse' : ''}`}
     >
       {/* Header Section */}
-      <div className={`h-48 bg-gradient-to-br ${gradient} relative overflow-hidden`}>
+      <div className={`h-40 sm:h-48 bg-gradient-to-br ${gradient} relative overflow-hidden`}>
         <div className="w-full h-full flex items-center justify-center">
-          <Icon className={`h-16 w-16 text-white opacity-80 ${isLive ? 'animate-pulse' : ''}`} />
+          <Icon className={`h-10 w-10 sm:h-16 sm:w-16 text-white opacity-80 ${isLive ? 'animate-pulse' : ''}`} />
         </div>
         
         {/* Badges */}
-        <div className="absolute bottom-4 left-4">
-          <span className="px-3 py-1 bg-black bg-opacity-70 text-white rounded-full text-sm font-medium backdrop-blur-sm">
+        <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4">
+          <span className="px-2 sm:px-3 py-1 bg-black bg-opacity-70 text-white rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
             {formatDuration(session.duration || 60)}
           </span>
         </div>
         
-        <div className="absolute top-4 right-4">
-          <span className={`px-3 py-1 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-orange-500'} text-white rounded-full text-xs font-medium flex items-center gap-1`}>
+        <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+          <span className={`px-2 sm:px-3 py-1 ${isLive ? 'bg-red-500 animate-pulse' : 'bg-orange-500'} text-white rounded-full text-xs font-medium flex items-center gap-1`}>
             {isLive && <Zap className="h-3 w-3" />}
             {statusText}
           </span>
@@ -266,8 +266,8 @@ const SessionCard = React.memo(forwardRef(({ session, onJoin, index, type }, ref
       </div>
 
       {/* Content Section */}
-      <div className="p-6 space-y-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-2">
+      <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-2">
           {session.title || session.topic}
         </h3>
         
@@ -275,30 +275,33 @@ const SessionCard = React.memo(forwardRef(({ session, onJoin, index, type }, ref
           {session.description || (isLive ? 'Live session in progress' : 'Live session coming soon')}
         </p>
         
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {session.instructorName}
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="truncate">{session.instructorName}</span>
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {formatDateTime(session.scheduledTime)}
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="truncate">{formatDateTime(session.scheduledTime)}</span>
             </span>
           </div>
         </div>
         
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
             {session.courseName || 'General Session'}
           </span>
           <Button 
             size="sm" 
             onClick={() => onJoin(session)}
-            className={`bg-gradient-to-r ${isLive ? 'from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 animate-pulse' : 'from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600'}`}
+            className={`bg-gradient-to-r text-xs sm:text-sm ${
+              isLive 
+                ? 'from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 animate-pulse' 
+                : 'from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600'
+            }`}
           >
-            {/* FIXED: Changed from buttonIcon to ButtonIcon */}
-            <ButtonIcon className="h-4 w-4 mr-1" /> 
+            <ButtonIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" /> 
             {buttonText}
           </Button>
         </div>
@@ -581,28 +584,29 @@ const StudentRecordings = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }} 
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4"
       >
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <Video className="h-8 w-8 text-blue-500" />
-            Learning Content
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2 sm:gap-3">
+            <Video className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+            <span className="break-words">Learning Content</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Watch recordings on Google Drive, join live sessions, and track your progress
           </p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <Button 
             onClick={() => loadAllData(true)} 
             variant="outline" 
             disabled={refreshing}
+            className="flex-1 sm:flex-none justify-center text-sm"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -615,16 +619,16 @@ const StudentRecordings = () => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3"
+          className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3"
         >
-          <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-red-700 dark:text-red-300">{error}</p>
+          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
             <Button 
               onClick={() => loadAllData(true)} 
               size="sm" 
               variant="outline" 
-              className="mt-2 border-red-300 text-red-700 hover:bg-red-50"
+              className="mt-2 border-red-300 text-red-700 hover:bg-red-50 text-xs"
             >
               Try Again
             </Button>
@@ -633,31 +637,31 @@ const StudentRecordings = () => {
       )}
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {statCards.map((stat, index) => (
           <motion.div 
             key={stat.label}
             initial={{ opacity: 0, scale: 0.9 }} 
             animate={{ opacity: 1, scale: 1 }} 
             transition={{ delay: index * 0.1 }}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300"
+            className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300"
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">
                   {stat.label}
                 </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-1">
                   {stat.value}
                 </p>
                 {stat.percent !== undefined && (
-                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                  <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 mt-1">
                     {stat.percent}% completed
                   </p>
                 )}
               </div>
-              <div className={`p-3 bg-${stat.color}-100 dark:bg-${stat.color}-900/30 rounded-lg`}>
-                <stat.icon className={`h-6 w-6 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+              <div className={`p-2 sm:p-3 bg-${stat.color}-100 dark:bg-${stat.color}-900/30 rounded-lg flex-shrink-0 ml-3`}>
+                <stat.icon className={`h-4 w-4 sm:h-6 sm:w-6 text-${stat.color}-600 dark:text-${stat.color}-400`} />
               </div>
             </div>
           </motion.div>
@@ -668,24 +672,24 @@ const StudentRecordings = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700"
+        className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-6">
           {/* Tabs */}
-          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 overflow-x-auto">
             {tabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.key 
                     ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <tab.icon className="h-4 w-4 mr-2" />
+                <tab.icon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {tab.label}
-                <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+                <span className={`ml-1 sm:ml-2 px-1.5 py-0.5 text-xs rounded-full ${
                   activeTab === tab.key 
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' 
                     : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
@@ -697,27 +701,29 @@ const StudentRecordings = () => {
           </div>
 
           {/* Search and Filters */}
-          <div className="flex-1 flex flex-col lg:flex-row lg:items-center gap-4">
+          <div className="flex-1 flex flex-col lg:flex-row lg:items-center gap-3 sm:gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search recordings, sessions, instructors..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
-              />
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search recordings, sessions, instructors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-sm"
+                />
+              </div>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <div className="relative flex-1 sm:flex-none min-w-[140px]">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
+                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer text-sm"
                 >
                   {CATEGORY_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>
@@ -727,12 +733,12 @@ const StudentRecordings = () => {
                 </select>
               </div>
 
-              <div className="relative">
-                <SortAsc className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="relative flex-1 sm:flex-none min-w-[140px]">
+                <SortAsc className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
+                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer text-sm"
                 >
                   {sortOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -748,7 +754,7 @@ const StudentRecordings = () => {
 
       {/* Content Grid */}
       <div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           <AnimatePresence mode="popLayout">
             {filteredContent.map((item, index) => {
               if (item.type === CONTENT_TYPES.RECORDINGS) {
@@ -782,23 +788,23 @@ const StudentRecordings = () => {
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-16"
+            className="text-center py-12 sm:py-16"
           >
             {activeTab === CONTENT_TYPES.RECORDINGS && (
-              <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <Video className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-3 sm:mb-4" />
             )}
             {activeTab === CONTENT_TYPES.UPCOMING && (
-              <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <Calendar className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-3 sm:mb-4" />
             )}
             {activeTab === CONTENT_TYPES.LIVE && (
-              <Radio className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <Radio className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-3 sm:mb-4" />
             )}
             
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No {activeTab} found
             </h3>
             
-            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+            <p className="text-gray-600 dark:text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm">
               {searchTerm || categoryFilter !== 'all' 
                 ? 'Try adjusting your search or filters to find more content.' 
                 : `No ${activeTab} are currently available. Check back later for new content.`
@@ -808,6 +814,7 @@ const StudentRecordings = () => {
             <Button 
               onClick={() => loadAllData(true)} 
               variant="outline"
+              className="text-sm"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh Content

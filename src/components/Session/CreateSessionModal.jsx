@@ -22,11 +22,11 @@ import { db } from '../../config/firebase.jsx';
 import { useAuth } from '../../hooks/useAuth.jsx';
 import Button from '../UI/Button.jsx';
 import Select from '../UI/Select.jsx';
-import { sessionService } from '../../services/sessionService.jsx'; // ✅ CHANGED: Use sessionService instead of recordingService
+import { sessionService } from '../../services/sessionService.jsx';
 
 // ✅ FIX: Move CustomInput and CustomTextArea OUTSIDE the component to prevent re-renders
 const CustomInput = React.forwardRef(
-  ({ label, type = 'text', placeholder, error, disabled, icon: Icon, required, ...props }, ref) => (
+  ({ label, type = 'text', placeholder, error, disabled, icon: Icon, required, inputMode, ...props }, ref) => (
     <div className="space-y-2">
       {label && (
         <label
@@ -46,6 +46,7 @@ const CustomInput = React.forwardRef(
         )}
         <input
           type={type}
+          inputMode={inputMode}
           className={`w-full px-4 py-3 border rounded-2xl bg-white/50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 transition-all ${
             error
               ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
@@ -96,7 +97,7 @@ const CustomTextArea = React.forwardRef(
 const CreateSessionModal = ({
   onClose,
   onSuccess,
-  session = null, // ✅ CHANGED: Accept session prop for editing
+  session = null,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -108,6 +109,46 @@ const CreateSessionModal = ({
   const [availableCourses, setAvailableCourses] = useState([]);
 
   const isEditMode = Boolean(session);
+
+  // Helper function to normalize Google Meet links for proper redirection
+  const normalizeMeetLink = useCallback((url) => {
+    if (!url) return '';
+    
+    let normalized = url.trim();
+    
+    // Remove any extra spaces
+    normalized = normalized.replace(/\s+/g, '');
+    
+    // Ensure it starts with https://
+    if (!normalized.startsWith('https://')) {
+      if (normalized.startsWith('meet.google.com/')) {
+        normalized = 'https://' + normalized;
+      } else if (normalized.startsWith('http://meet.google.com/')) {
+        normalized = normalized.replace('http://', 'https://');
+      } else if (normalized.startsWith('meet.google.com')) {
+        normalized = 'https://' + normalized;
+      } else {
+        // If it's just a code like "abc-def-ghi", format it properly
+        if (normalized.match(/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/)) {
+          normalized = `https://meet.google.com/${normalized}`;
+        }
+      }
+    }
+    
+    // Convert to lowercase for consistency
+    normalized = normalized.toLowerCase();
+    
+    // Ensure it has the proper meet.google.com domain
+    if (!normalized.includes('meet.google.com')) {
+      // If it's a valid meet code but missing domain, add it
+      const meetCodeMatch = normalized.match(/([a-z]{3}-[a-z]{4}-[a-z]{3})/);
+      if (meetCodeMatch) {
+        normalized = `https://meet.google.com/${meetCodeMatch[1]}`;
+      }
+    }
+    
+    return normalized;
+  }, []);
 
   const {
     register,
@@ -428,9 +469,13 @@ const CreateSessionModal = ({
     </div>
   ), [t, isEditMode]);
 
-  // ✅ CHANGED: Use sessionService instead of recordingService
   const createOrUpdateSession = async (data) => {
     console.log('📋 Creating/Updating session with data:', data);
+
+    // Normalize the meet link before saving to ensure proper redirection
+    const normalizedMeetLink = normalizeMeetLink(data.meetLink);
+    console.log('🔗 Original meet link:', data.meetLink);
+    console.log('🔗 Normalized meet link:', normalizedMeetLink);
 
     // Calculate session end time
     const startTime = new Date(data.scheduledTime);
@@ -439,7 +484,7 @@ const CreateSessionModal = ({
     const sessionData = {
       title: data.title?.trim() || 'Untitled Session',
       description: data.description?.trim() || '',
-      meetLink: data.meetLink,
+      meetLink: normalizedMeetLink, // Use normalized link for proper redirection
       scheduledTime: data.scheduledTime,
       sessionEndTime: sessionEndTime,
       duration: Number(data.duration) || 60,
@@ -455,7 +500,7 @@ const CreateSessionModal = ({
       createdBy: user.uid,
     };
 
-    console.log('🚀 Final session data for session service:', sessionData);
+    console.log('🚀 Final session data with normalized meet link:', sessionData);
 
     if (isEditMode && session?.id) {
       // Update existing session
@@ -646,26 +691,27 @@ const CreateSessionModal = ({
               />
             </div>
 
-            {/* Meet Link */}
+            {/* Meet Link - NO VALIDATION but with normalization */}
             <div className="lg:col-span-2">
               <CustomInput
                 label={`${t('session.meetLink', 'Google Meet Link')} *`}
-                type="url"
-                placeholder="https://meet.google.com/abc-def-ghi"
+                type="text" // Changed from "url" to "text" to avoid browser validation
+                inputMode="url"
+                placeholder="https://meet.google.com/abc-def-ghi or just abc-def-ghi"
                 error={errors.meetLink?.message}
                 disabled={isSubmitting}
                 icon={Link}
                 required
                 {...register('meetLink', {
                   required: t('validation.required', { field: 'Meet Link' }),
-                  pattern: {
-                    value: /^https:\/\/meet\.google\.com\/[a-z-]+$/,
-                    message: t('validation.invalidMeetUrl', 'Invalid Meet link'),
-                  },
+                  // NO PATTERN VALIDATION - Accepts any text but will be normalized
                 })}
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {t('session.meetLinkHelp', 'Copy from Google Meet → "Create for later"')}
+                {t('session.meetLinkHelp', 'Copy from Google Meet → "Create for later" or just paste the meeting code')}
+              </p>
+              <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">
+                The link will be automatically formatted for proper redirection
               </p>
             </div>
 

@@ -106,23 +106,23 @@ const RecordingCard = React.memo(({
   const teacherName = recording.instructorName || getTeacherName(recording.instructorId)
   
   return (
-    <div className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-6 shadow-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-4 flex-1 min-w-0">
-          <div className={`p-3 rounded-2xl bg-gradient-to-br ${getStatusColor(recording.status)}`}>
-            <StatusIcon className="h-6 w-6 text-white" />
+    <div className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-lg sm:shadow-2xl hover:shadow-xl sm:hover:shadow-2xl transition-all duration-300 hover:scale-105">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+          <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br ${getStatusColor(recording.status)} flex-shrink-0`}>
+            <StatusIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <h4 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-1 flex-1">
+            <div className="flex flex-col xs:flex-row xs:items-start justify-between mb-2 gap-2">
+              <h4 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-2 flex-1">
                 {recording.title}
                 {recording.meetLink && (
-                  <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-full">
+                  <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-full whitespace-nowrap">
                     Google Meet
                   </span>
                 )}
               </h4>
-              <div className="flex items-center space-x-2 ml-3">
+              <div className="flex items-center space-x-2 flex-shrink-0">
                 {recording.watched && (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 )}
@@ -137,22 +137,22 @@ const RecordingCard = React.memo(({
             </p>
 
             {/* Instructor and Category */}
-            <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400 mb-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3">
               {teacherName && (
                 <span className="flex items-center">
                   <User className="h-3 w-3 mr-1" />
-                  {teacherName}
+                  <span className="truncate">{teacherName}</span>
                 </span>
               )}
               {recording.category && (
-                <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                <span className="px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   {recording.category}
                 </span>
               )}
             </div>
 
             {/* Recording Details */}
-            <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
               <span className="flex items-center">
                 <Eye className="h-3 w-3 mr-1" />
                 {recording.views || 0} views
@@ -167,7 +167,7 @@ const RecordingCard = React.memo(({
                   {recording.averageRating.toFixed(1)}
                 </span>
               )}
-              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize whitespace-nowrap ${
                 recording.status === 'completed'
                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                   : recording.status === 'processing'
@@ -200,7 +200,7 @@ const RecordingCard = React.memo(({
                 {recording.tags.slice(0, 3).map((tag, tagIndex) => (
                   <span
                     key={`tag-${recording.id}-${tagIndex}`}
-                    className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 whitespace-nowrap"
                   >
                     {tag}
                   </span>
@@ -214,17 +214,17 @@ const RecordingCard = React.memo(({
             )}
           </div>
         </div>
-        <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ml-4">
+        <div className="flex sm:flex-col gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 sm:ml-4">
           <Button
             size="sm"
             onClick={() => onWatch(recording)}
             disabled={actionLoading[recording.id]}
-            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 flex-1 sm:flex-none text-xs sm:text-sm"
           >
             {actionLoading[recording.id] ? (
               <LoadingSpinner size="sm" className="mr-1" />
             ) : (
-              <PlayCircle className="h-3 w-3 mr-1" />
+              <PlayCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             )}
             {recording.recordingUrl?.includes('drive.google.com') ? 'Watch on Drive' : 'Watch'}
           </Button>
@@ -247,7 +247,7 @@ const SessionCard = React.memo(({
   
   return (
     <div
-      className="flex items-center p-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 transition-all duration-200 group cursor-pointer"
+      className="flex items-center p-3 rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-lg border border-white/40 dark:border-gray-600/40 hover:bg-white/80 dark:hover:bg-gray-600/80 transition-all duration-200 group cursor-pointer"
       onClick={() => onJoin(session)}
     >
       <div className="flex-1 min-w-0">
@@ -264,12 +264,12 @@ const SessionCard = React.memo(({
         )}
         <div className="flex items-center space-x-2 mt-1">
           <Clock className="h-3 w-3 text-gray-500" />
-          <p className="text-xs text-gray-700 dark:text-gray-300">
+          <p className="text-xs text-gray-700 dark:text-gray-300 truncate">
             {dateTime.date} at {dateTime.time}
           </p>
         </div>
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 flex-shrink-0">
         <div className={`w-2 h-2 rounded-full animate-pulse ${
           type === 'teacher' ? 'bg-green-500' : 'bg-red-500'
         }`} />
@@ -613,24 +613,24 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900 min-h-screen">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 lg:p-8 bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900 min-h-screen">
       {/* Header */}
       <div className="text-center lg:text-left">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent mb-2 sm:mb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent mb-2 sm:mb-3 break-words">
               Student Dashboard
             </h1>
-            <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-700 dark:text-gray-300 max-w-2xl">
               Access your classes, recordings, and learning materials
             </p>
             {studentName && (
-              <div className="flex items-center mt-2 space-x-2">
+              <div className="flex flex-col xs:flex-row xs:items-center mt-2 gap-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Welcome back, <span className="font-semibold text-gray-800 dark:text-gray-200">{studentName}</span>
                 </p>
                 {userProfile?.subscription?.plan === 'premium' && (
-                  <span className="px-2 py-1 text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full flex items-center">
+                  <span className="px-2 py-1 text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full flex items-center w-fit">
                     <Crown className="h-3 w-3 mr-1" />
                     Premium Student
                   </span>
@@ -638,19 +638,19 @@ const StudentDashboard = () => {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col xs:flex-row items-center gap-2 sm:gap-3">
             <Button
               onClick={handleRefresh}
               variant="outline"
               disabled={isRefetchingRecordings}
-              className="hidden lg:flex items-center"
+              className="hidden lg:flex items-center text-sm"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingRecordings ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button
               onClick={() => (window.location.href = '/courses')}
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg text-sm w-full xs:w-auto justify-center"
             >
               <BookOpen className="h-4 w-4 mr-2" />
               Browse Classes
@@ -659,16 +659,29 @@ const StudentDashboard = () => {
         </div>
       </div>
 
+      {/* Mobile Refresh Button */}
+      <div className="lg:hidden flex justify-center">
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          className="flex items-center w-full sm:w-auto justify-center text-sm"
+          disabled={isRefetchingRecordings}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetchingRecordings ? 'animate-spin' : ''}`} />
+          Refresh Data
+        </Button>
+      </div>
+
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-lg border border-red-200/50 dark:border-red-800/50 rounded-2xl p-4 flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
-          <p className="text-red-700 dark:text-red-300 text-sm flex-1">
+        <div className="bg-red-50/80 dark:bg-red-900/30 backdrop-blur-lg border border-red-200/50 dark:border-red-800/50 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center">
+          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2 sm:mr-3 flex-shrink-0" />
+          <p className="text-red-700 dark:text-red-300 text-xs sm:text-sm flex-1">
             Failed to load content. Please try refreshing.
           </p>
           <button
             onClick={handleRefresh}
-            className="ml-4 text-red-500 hover:text-red-700 flex-shrink-0"
+            className="ml-2 sm:ml-4 text-red-500 hover:text-red-700 flex-shrink-0"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -676,24 +689,24 @@ const StudentDashboard = () => {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statCards.map((stat) => {
           const Icon = stat.icon
           
           return (
             <div
               key={stat.id}
-              className="group relative overflow-hidden rounded-3xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
+              className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border border-white/30 dark:border-gray-700/40 p-3 sm:p-4 lg:p-6 shadow-lg sm:shadow-2xl hover:shadow-xl sm:hover:shadow-2xl transition-all duration-500 hover:scale-105"
             >
-              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${stat.bgColor} rounded-3xl`} />
+              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br ${stat.bgColor} rounded-2xl sm:rounded-3xl`} />
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className={`p-2 sm:p-3 rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
-                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                  <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br ${stat.color} shadow-lg`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                   </div>
                   <div className="flex items-center space-x-1">
                     {stat.changeType === 'positive' && (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
                     )}
                     <div className={`text-xs sm:text-sm font-semibold ${
                       stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
@@ -704,18 +717,18 @@ const StudentDashboard = () => {
                 </div>
                 {stat.loading ? (
                   <div className="animate-pulse">
-                    <div className="h-7 sm:h-8 bg-gray-300 dark:bg-gray-600 rounded mb-2" />
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="h-6 sm:h-7 lg:h-8 bg-gray-300 dark:bg-gray-600 rounded mb-1 sm:mb-2" />
+                    <div className="h-3 sm:h-4 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2">
                       {stat.value}
                     </h3>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1 line-clamp-1">
                       {stat.name}
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
                       {stat.description}
                     </p>
                   </>
@@ -727,18 +740,18 @@ const StudentDashboard = () => {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
         {/* Sessions Sidebar */}
-        <div className="xl:col-span-1 space-y-6">
+        <div className="xl:col-span-1 space-y-4 sm:space-y-6">
           {/* Teacher Sessions */}
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40 p-3 sm:p-4 lg:p-6 shadow-lg sm:shadow-2xl hover:shadow-xl sm:hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                 Teacher Sessions
               </h3>
-              <Users className="h-5 w-5 text-purple-500" />
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {filteredTeacherSessions.length > 0 ? (
                 filteredTeacherSessions.slice(0, 5).map((session) => (
                   <SessionCard
@@ -751,9 +764,9 @@ const StudentDashboard = () => {
                   />
                 ))
               ) : (
-                <div className="text-center py-4 text-gray-600 dark:text-gray-400">
-                  <Users className="mx-auto h-8 w-8 mb-2" />
-                  <p className="text-sm">No teacher sessions</p>
+                <div className="text-center py-3 sm:py-4 text-gray-600 dark:text-gray-400">
+                  <Users className="mx-auto h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+                  <p className="text-xs sm:text-sm">No teacher sessions</p>
                   <p className="text-xs mt-1">Check back later for updates</p>
                 </div>
               )}
@@ -761,7 +774,7 @@ const StudentDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full mt-2"
+                  className="w-full mt-2 text-xs sm:text-sm"
                   onClick={() => (window.location.href = '/sessions?view=teachers')}
                 >
                   View All Teacher Sessions
@@ -771,16 +784,16 @@ const StudentDashboard = () => {
           </div>
 
           {/* Recent Sessions */}
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40 p-3 sm:p-4 lg:p-6 shadow-lg sm:shadow-2xl hover:shadow-xl sm:hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                 Your Upcoming Sessions
               </h3>
-              <Calendar className="h-5 w-5 text-blue-500" />
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {sessionsLoading ? (
-                <div className="flex justify-center py-4">
+                <div className="flex justify-center py-3 sm:py-4">
                   <LoadingSpinner size="sm" />
                 </div>
               ) : recentSessions.length > 0 ? (
@@ -795,13 +808,13 @@ const StudentDashboard = () => {
                   />
                 ))
               ) : (
-                <div className="text-center py-4 text-gray-600 dark:text-gray-400">
-                  <Calendar className="mx-auto h-8 w-8 mb-2" />
-                  <p className="text-sm">No upcoming sessions</p>
+                <div className="text-center py-3 sm:py-4 text-gray-600 dark:text-gray-400">
+                  <Calendar className="mx-auto h-6 w-6 sm:h-8 sm:w-8 mb-1 sm:mb-2" />
+                  <p className="text-xs sm:text-sm">No upcoming sessions</p>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-2"
+                    className="mt-2 text-xs sm:text-sm"
                     onClick={() => (window.location.href = '/sessions')}
                   >
                     View All Sessions
@@ -813,19 +826,19 @@ const StudentDashboard = () => {
         </div>
 
         {/* Recordings Section */}
-        <div className="xl:col-span-3 space-y-6">
+        <div className="xl:col-span-3 space-y-4 sm:space-y-6">
           {/* Search and Filters */}
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/40 p-4 sm:p-6 shadow-2xl">
-            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40 p-3 sm:p-4 lg:p-6 shadow-lg sm:shadow-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center space-y-3 sm:space-y-4 lg:space-y-0 lg:space-x-4">
               {/* Search */}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-4 w-4 text-gray-500" />
                   </div>
                   <Input
                     type="text"
-                    className="block w-full pl-10 pr-3 py-3 rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
+                    className="block w-full pl-10 pr-3 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white text-sm"
                     placeholder="Search recordings by title, description, or instructor..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -837,16 +850,16 @@ const StudentDashboard = () => {
               <Button
                 onClick={() => setShowFilters(!showFilters)}
                 variant="outline"
-                className="lg:hidden"
+                className="lg:hidden text-sm w-full sm:w-auto justify-center"
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Filters
+                Filters {showFilters ? '▲' : '▼'}
               </Button>
 
               {/* Filters */}
-              <div className={`flex flex-col sm:flex-row gap-3 ${showFilters ? 'flex' : 'hidden lg:flex'}`}>
+              <div className={`flex flex-col sm:flex-row gap-2 sm:gap-3 ${showFilters ? 'flex' : 'hidden lg:flex'}`}>
                 <select
-                  className="block w-full sm:w-auto px-3 py-3 text-sm rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="block w-full sm:w-auto px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={teacherFilter}
                   onChange={(e) => setTeacherFilter(e.target.value)}
                 >
@@ -857,7 +870,7 @@ const StudentDashboard = () => {
                   ))}
                 </select>
                 <select
-                  className="block w-full sm:w-auto px-3 py-3 text-sm rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="block w-full sm:w-auto px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
@@ -868,7 +881,7 @@ const StudentDashboard = () => {
                   ))}
                 </select>
                 <select
-                  className="block w-full sm:w-auto px-3 py-3 text-sm rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="block w-full sm:w-auto px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -879,7 +892,7 @@ const StudentDashboard = () => {
                   ))}
                 </select>
                 <select
-                  className="block w-full sm:w-auto px-3 py-3 text-sm rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="block w-full sm:w-auto px-2 sm:px-3 py-2 text-xs sm:text-sm rounded-xl sm:rounded-2xl bg-white/50 dark:bg-gray-700/50 border-white/40 dark:border-gray-600/40 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
@@ -892,11 +905,16 @@ const StudentDashboard = () => {
                 <Button
                   onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
                   variant="outline"
-                  className="px-3"
+                  className="px-2 sm:px-3 text-xs sm:text-sm"
                 >
                   {sortOrder === 'desc' ? '↓' : '↑'}
                 </Button>
-                <Button onClick={handleRefresh} variant="outline" disabled={isRefetchingRecordings}>
+                <Button 
+                  onClick={handleRefresh} 
+                  variant="outline" 
+                  disabled={isRefetchingRecordings}
+                  className="text-xs sm:text-sm"
+                >
                   <RefreshCw className={`h-4 w-4 ${isRefetchingRecordings ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
@@ -905,11 +923,11 @@ const StudentDashboard = () => {
 
           {/* Recordings List */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
                 Available Recordings
               </h3>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 {filteredRecordings.length} items
                 {searchTerm && ` • matching "${searchTerm}"`}
                 {teacherFilter !== 'all' && ` • by ${teacherOptions.find(t => t.value === teacherFilter)?.label}`}
@@ -917,7 +935,7 @@ const StudentDashboard = () => {
             </div>
 
             {recordingsLoading ? (
-              <div className="flex justify-center items-center min-h-64 bg-white/50 dark:bg-gray-800/50 rounded-3xl border border-white/30 dark:border-gray-700/40">
+              <div className="flex justify-center items-center min-h-48 sm:min-h-64 bg-white/50 dark:bg-gray-800/50 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40">
                 <div className="text-center">
                   <LoadingSpinner size="lg" />
                   <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
@@ -927,7 +945,7 @@ const StudentDashboard = () => {
               </div>
             ) : filteredRecordings.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-6">
                   {filteredRecordings.map((recording) => (
                     <RecordingCard
                       key={`recording-${recording.id}`}
@@ -942,12 +960,12 @@ const StudentDashboard = () => {
 
                 {/* Load More Button */}
                 {hasNextPage && (
-                  <div className="flex justify-center mt-8">
+                  <div className="flex justify-center mt-6 sm:mt-8">
                     <Button
                       onClick={() => fetchNextPage()}
                       disabled={isFetchingNextPage}
                       variant="outline"
-                      className="flex items-center"
+                      className="flex items-center text-sm"
                     >
                       {isFetchingNextPage ? (
                         <>
@@ -962,15 +980,15 @@ const StudentDashboard = () => {
                 )}
               </>
             ) : (
-              <div className="text-center py-12 bg-white/50 dark:bg-gray-800/50 rounded-3xl border border-white/30 dark:border-gray-700/40">
-                <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="text-center py-8 sm:py-12 bg-white/50 dark:bg-gray-800/50 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-gray-700/40">
+                <Video className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' || teacherFilter !== 'all'
                     ? 'No matching recordings'
                     : 'No recordings available'
                   }
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                <p className="text-gray-600 dark:text-gray-400 mb-4 sm:mb-6 max-w-md mx-auto text-sm">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' || teacherFilter !== 'all'
                     ? 'Try adjusting your search or filters.'
                     : 'Enroll in a class to access recordings.'
@@ -978,7 +996,7 @@ const StudentDashboard = () => {
                 </p>
                 <Button
                   onClick={() => (window.location.href = '/courses')}
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-sm"
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
                   Browse Classes

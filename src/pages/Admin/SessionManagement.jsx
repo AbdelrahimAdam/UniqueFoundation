@@ -470,22 +470,24 @@ const SessionManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Session & Recording Management</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+      {/* Header - Fixed for mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
+            Session & Recording Management
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
             Manage Google Meet sessions and recordings
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           <Button 
             onClick={() => {
               setSelectedItem(null)
               setShowCreateRecordingModal(true)
             }}
             variant="outline"
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
+            className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white w-full sm:w-auto justify-center"
           >
             <Upload className="h-4 w-4 mr-2" />
             Add Recording
@@ -495,7 +497,7 @@ const SessionManagement = () => {
               setSelectedItem(null)
               setShowCreateSessionModal(true)
             }}
-            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-full sm:w-auto justify-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             Schedule Session
@@ -505,19 +507,19 @@ const SessionManagement = () => {
 
       {/* Collection Status */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-wrap gap-4 sm:gap-6 justify-center sm:justify-start">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sessionsFromSessions.length}</div>
-              <div className="text-sm text-blue-700 dark:text-blue-300">Sessions in Sessions Collection</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">{sessionsFromSessions.length}</div>
+              <div className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">Sessions in Sessions</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{sessionsFromRecordings.length}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300">Sessions in Recordings Collection</div>
+              <div className="text-xl sm:text-2xl font-bold text-orange-600 dark:text-orange-400">{sessionsFromRecordings.length}</div>
+              <div className="text-xs sm:text-sm text-orange-700 dark:text-orange-300">Sessions in Recordings</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{recordings.length}</div>
-              <div className="text-sm text-purple-700 dark:text-purple-300">Standalone Recordings</div>
+              <div className="text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-400">{recordings.length}</div>
+              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-300">Standalone Recordings</div>
             </div>
           </div>
           {sessionsFromRecordings.length > 0 && (
@@ -530,19 +532,20 @@ const SessionManagement = () => {
                 }
               }}
               variant="outline"
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              className="bg-orange-500 hover:bg-orange-600 text-white w-full sm:w-auto justify-center mt-2 sm:mt-0"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Migrate All Sessions
+              Migrate All
             </Button>
           )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
-          <div className="flex-1">
+      {/* Filters - Fixed for mobile */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col space-y-4">
+          {/* Search Input */}
+          <div className="w-full">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -550,38 +553,44 @@ const SessionManagement = () => {
                 placeholder="Search sessions and recordings..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
             </div>
           </div>
-          <div className="flex space-x-4">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Types</option>
-              <option value="sessions">Sessions Only</option>
-              <option value="recordings">Recordings Only</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="live">Live</option>
-              <option value="completed">Completed</option>
-              <option value="recorded">Recorded</option>
-              <option value="available">Available</option>
-            </select>
+          
+          {/* Filter Controls */}
+          <div className="flex flex-col xs:flex-row gap-3 w-full">
+            <div className="flex-1 min-w-0">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+              >
+                <option value="all">All Types</option>
+                <option value="sessions">Sessions Only</option>
+                <option value="recordings">Recordings Only</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-0">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+              >
+                <option value="all">All Status</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="live">Live</option>
+                <option value="completed">Completed</option>
+                <option value="recorded">Recorded</option>
+                <option value="available">Available</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         {displayData.map((item) => {
           const itemType = getItemType(item)
           const isSession = itemType === 'session'
@@ -599,17 +608,17 @@ const SessionManagement = () => {
               className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300"
             >
               {/* Header */}
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
                       {isSession && (
-                        <Calendar className="h-4 w-4 text-blue-500" />
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
                       )}
                       {isRecording && (
-                        <Video className="h-4 w-4 text-purple-500" />
+                        <Video className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500 flex-shrink-0" />
                       )}
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)} break-words`}>
                         {isSession ? 'Session' : 'Recording'} • {item.status}
                       </span>
                       {!isPublished && (
@@ -623,36 +632,36 @@ const SessionManagement = () => {
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg line-clamp-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-2 break-words">
                       {item.title || item.topic}
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 line-clamp-2">
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1 line-clamp-2 break-words">
                       {item.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   <span className="flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    {item.instructorName || 'Unknown'}
+                    <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                    <span className="truncate">{item.instructorName || 'Unknown'}</span>
                   </span>
                   {item.scheduledTime && (
                     <span className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {new Date(item.scheduledTime).toLocaleDateString()}
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+                      <span className="truncate">{new Date(item.scheduledTime).toLocaleDateString()}</span>
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Details */}
-              <div className="p-6">
-                <div className="space-y-3">
+              <div className="p-4 sm:p-6">
+                <div className="space-y-2 sm:space-y-3">
                   {item.scheduledTime && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Time</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Time</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white text-right">
                         {new Date(item.scheduledTime).toLocaleTimeString()}
                       </span>
                     </div>
@@ -660,16 +669,16 @@ const SessionManagement = () => {
 
                   {item.duration && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Duration</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Duration</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                         {item.duration} min
                       </span>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Recording</span>
-                    <span className={`text-sm font-medium ${
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Recording</span>
+                    <span className={`text-xs sm:text-sm font-medium ${
                       hasRecording 
                         ? 'text-green-600 dark:text-green-400' 
                         : 'text-gray-500 dark:text-gray-400'
@@ -680,13 +689,13 @@ const SessionManagement = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 mt-6">
+                <div className="flex flex-wrap gap-2 mt-4 sm:mt-6">
                   {isSession && isLive && (
                     <Button
                       onClick={() => handleJoinSession(item)}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                      className="flex-1 min-w-[120px] bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm"
                     >
-                      <PlayCircle className="h-4 w-4 mr-2" />
+                      <PlayCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Join Live
                     </Button>
                   )}
@@ -695,9 +704,9 @@ const SessionManagement = () => {
                     <Button
                       onClick={() => handleJoinSession(item)}
                       variant="outline"
-                      className="flex-1"
+                      className="flex-1 min-w-[120px] text-xs sm:text-sm"
                     >
-                      <Calendar className="h-4 w-4 mr-2" />
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Join
                     </Button>
                   )}
@@ -706,12 +715,12 @@ const SessionManagement = () => {
                     <Button
                       onClick={() => handleAddRecording(item.id, isFromRecordingsCollection)}
                       disabled={actionLoading[item.id]}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                      className="flex-1 min-w-[120px] bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-xs sm:text-sm"
                     >
                       {actionLoading[item.id] ? (
-                        <LoadingSpinner size="sm" className="mr-2" />
+                        <LoadingSpinner size="sm" className="mr-1 sm:mr-2" />
                       ) : (
-                        <Video className="h-4 w-4 mr-2" />
+                        <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       )}
                       Add Recording
                     </Button>
@@ -722,10 +731,10 @@ const SessionManagement = () => {
                       href={item.recordingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1"
+                      className="flex-1 min-w-[120px]"
                     >
-                      <Button variant="outline" className="w-full">
-                        <Eye className="h-4 w-4 mr-2" />
+                      <Button variant="outline" className="w-full text-xs sm:text-sm">
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         View Recording
                       </Button>
                     </a>
@@ -733,12 +742,13 @@ const SessionManagement = () => {
 
                   {/* Session Controls */}
                   {isSession && (
-                    <>
+                    <div className="flex flex-wrap gap-1 sm:gap-2 w-full mt-2">
                       {isUpcoming && (
                         <Button
                           onClick={() => handleStartSession(item.id, isFromRecordingsCollection)}
                           variant="outline"
                           size="sm"
+                          className="text-xs flex-1 min-w-[60px]"
                         >
                           Start
                         </Button>
@@ -748,6 +758,7 @@ const SessionManagement = () => {
                           onClick={() => handleEndSession(item.id, isFromRecordingsCollection)}
                           variant="outline"
                           size="sm"
+                          className="text-xs flex-1 min-w-[60px]"
                         >
                           End
                         </Button>
@@ -757,6 +768,7 @@ const SessionManagement = () => {
                           onClick={() => handlePublishSession(item.id, isFromRecordingsCollection)}
                           variant="outline"
                           size="sm"
+                          className="text-xs flex-1 min-w-[70px]"
                         >
                           Publish
                         </Button>
@@ -765,49 +777,54 @@ const SessionManagement = () => {
                           onClick={() => handleUnpublishSession(item.id, isFromRecordingsCollection)}
                           variant="outline"
                           size="sm"
+                          className="text-xs flex-1 min-w-[85px]"
                         >
                           Unpublish
                         </Button>
                       )}
-                    </>
+                    </div>
                   )}
 
-                  {/* Migrate Button for sessions in recordings collection */}
-                  {isSession && isFromRecordingsCollection && (
+                  {/* Action Buttons Row */}
+                  <div className="flex flex-wrap gap-1 sm:gap-2 w-full mt-2">
+                    {/* Migrate Button for sessions in recordings collection */}
+                    {isSession && isFromRecordingsCollection && (
+                      <Button
+                        onClick={() => migrateSessionToProperCollection(item.id)}
+                        disabled={actionLoading[item.id]}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs flex-1 min-w-[80px] text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      >
+                        {actionLoading[item.id] ? (
+                          <LoadingSpinner size="sm" className="mr-1" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                        )}
+                        Migrate
+                      </Button>
+                    )}
+
+                    {/* Edit Button */}
                     <Button
-                      onClick={() => migrateSessionToProperCollection(item.id)}
-                      disabled={actionLoading[item.id]}
+                      onClick={() => isSession ? handleEditSession(item) : handleEditRecording(item)}
                       variant="outline"
                       size="sm"
-                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      className="text-xs flex-1 min-w-[60px]"
                     >
-                      {actionLoading[item.id] ? (
-                        <LoadingSpinner size="sm" className="mr-1" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                      )}
-                      Migrate
+                      <Edit className="h-3 w-3" />
                     </Button>
-                  )}
 
-                  {/* Edit Button */}
-                  <Button
-                    onClick={() => isSession ? handleEditSession(item) : handleEditRecording(item)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-
-                  {/* Delete Button */}
-                  <Button
-                    onClick={() => isSession ? handleDeleteSession(item.id, isFromRecordingsCollection) : handleDeleteRecording(item.id)}
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    {/* Delete Button */}
+                    <Button
+                      onClick={() => isSession ? handleDeleteSession(item.id, isFromRecordingsCollection) : handleDeleteRecording(item.id)}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs flex-1 min-w-[60px] text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -817,28 +834,28 @@ const SessionManagement = () => {
 
       {displayData.length === 0 && (
         <div className="text-center py-12">
-          <Video className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <Video className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-4" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
             No sessions or recordings found
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm sm:text-base">
             {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
               ? 'Try adjusting your search or filters'
               : 'Get started by scheduling your first session or adding a recording'
             }
           </p>
-          <div className="flex justify-center space-x-3">
+          <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3">
             <Button 
               onClick={() => setShowCreateRecordingModal(true)}
               variant="outline"
-              className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white"
+              className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white w-full sm:w-auto justify-center"
             >
               <Upload className="h-4 w-4 mr-2" />
               Add Recording
             </Button>
             <Button 
               onClick={() => setShowCreateSessionModal(true)}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-full sm:w-auto justify-center"
             >
               <Plus className="h-4 w-4 mr-2" />
               Schedule Session
